@@ -1,0 +1,38 @@
+project:
+  name: ecommerce-text-classification
+  random_seed: 42
+
+data:
+  raw_path: data/raw/online_shopping_10_cats.csv
+  interim_dir: data/interim
+  processed_dir: data/processed
+  text_column: review
+  category_column: cat
+  sentiment_column: label
+  train_ratio: 0.8
+  dev_ratio: 0.1
+  test_ratio: 0.1
+
+task:
+  primary: category_classification
+  secondary: sentiment_classification
+  categories:
+    - 书籍
+    - 平板
+    - 手机
+    - 水果
+    - 洗发水
+    - 热水器
+    - 蒙牛
+    - 衣服
+    - 计算机
+    - 酒店
+
+evaluation:
+  primary_metric: macro_f1
+  report_metrics:
+    - accuracy
+    - macro_precision
+    - macro_recall
+    - macro_f1
+    - weighted_f1
