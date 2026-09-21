@@ -13,13 +13,15 @@
 ## 当前进度
 
 - [x] M1：项目初始化
-- [ ] M2：数据清洗、分层划分与 EDA
+- [x] M2：数据清洗、分层划分与 EDA（待团队复核，见 `docs/development-plan.md`）
 - [ ] M3：TF-IDF 线性基线与随机森林
 - [ ] M4：FastText 与 BERT
 - [ ] M5：模型优化与情感分析扩展
 - [ ] M6：Web 部署与答辩材料
 
-当前仅完成项目初始化与原始数据获取。尚未完成数据清洗、模型训练或端到端预测。
+M2 已产出可复现的数据闭环：原始 62,774 条 → 清洗后 62,753 条，
+按类别分层划分为 50,209 / 6,272 / 6,272，跨集合重复文本为 0。
+模型训练与端到端预测尚未开始。
 
 ## 项目周期
 
@@ -74,6 +76,37 @@ data/raw/online_shopping_10_cats.csv
 脚本会校验文件 SHA-256、字段名与基础行数。原始 CSV 被 `.gitignore` 排除，团队成员应分别运行下载脚本获取相同数据。
 
 数据来源、字段和使用限制见 [data/README.md](data/README.md)。
+
+## 数据流程
+
+四个脚本必须按顺序执行，每一步都拒绝跳过上游产物，从而保证流程可复现：
+
+```powershell
+python scripts/check_data_quality.py    # 原始数据质量检查报告
+python scripts/clean_data.py            # 清洗 -> data/interim/reviews_clean.csv
+python scripts/split_data.py            # 8:1:1 分层划分 -> data/processed/{train,dev,test}.csv
+python scripts/run_eda.py               # EDA 图表与 max_length 评审报告
+python scripts/report_environment.py    # 依赖与实际环境比对记录
+```
+
+产物位置：
+
+| 产物 | 路径 |
+| --- | --- |
+| 质量检查报告 | `reports/data-quality-report.md` |
+| 清洗报告 | `reports/data-cleaning-report.md` |
+| 划分与泄漏检查报告 | `reports/data-split-report.md` |
+| EDA 报告与图表 | `reports/eda-report.md`、`reports/figures/` |
+| 环境与依赖记录 | `reports/environment.md` |
+
+数据划分使用固定随机种子 42，并以评论文本为分组单位，确保同一文本不会跨越
+训练集、验证集和测试集；划分脚本在检测到泄漏时会以非零退出码失败。
+
+## 运行环境
+
+本项目统一使用 conda 环境 `AI`（Python 3.11.15）。该环境的实际依赖版本，
+以及与 `requirements.txt` 约束的比对结果，记录在
+[reports/environment.md](reports/environment.md) 中。
 
 ## 基础检查
 
