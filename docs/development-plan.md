@@ -80,7 +80,8 @@
 待非作者成员复核：
 
 - [ ] LanQvJian 用 `python scripts/verify_model_contract.py` 复核三个模型的契约合规
-- [ ] HongSenYuan 确认 M4 与本报告使用**同一份测试集**（测试集指纹见报告第 1 节）
+- [ ] HongSenYuan 确认 M4 与本报告使用**同一份测试集**（数据集指纹见报告第 1 节，
+      按契约 §2.3 v1.0.1 由三个划分 CSV 的内容哈希算出，不受 `created_at` 影响）
 - [ ] 确认 `models/tfidf_svm/`（105.98 MB）作为 M6 演示候选模型的可行性
 
 ### M4 / M5 下一步（HongSenYuan）
