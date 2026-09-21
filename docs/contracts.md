@@ -1,8 +1,26 @@
 # 接口契约（强制）
 
-版本：v1.0
-生效日期：2026-09-21
+版本：v1.0.1
+首次生效：2026-09-21
+本版生效：2026-09-21（HuMingChang、HongSenYuan 已确认）
 维护人：LanQvJian
+
+## 变更记录
+
+| 版本 | 日期 | 变更 | 原因 |
+| --- | --- | --- | --- |
+| v1.0 | 2026-09-21 | 首次发布 | — |
+| v1.0.1 | 2026-09-21 | §2.3：`split_manifest_sha256` 改为 `dataset_fingerprint`，由 train/dev/test 三个 CSV 的内容哈希计算 | v1.0 的指纹取自 `split_manifest.json` 整体，该文件含 `created_at`，每次重新生成数据都会变化。即使三个 CSV 字节完全一致，模型仍会被判定为"基于旧数据训练"，导致 M3 无法通过验收（见 `reports/m3-validation.md` 阻断项） |
+
+> **本版是 v1.0 的勘误（erratum），不是 v1.1。**
+> v1.0 规定的指纹条款任何人都无法通过校验，属于无法满足的缺陷，不是政策选择，因此不占用 v1.1 版本号。
+>
+> **v1.1 已由 HongSenYuan 的修订提案预定**，用于情感任务产物约定、`device` 表述、
+> 冲突重复处理规则三项修订（见 `reports/meeting-notes/2026-09-21-contract-v1.1-proposal.md`），
+> 与本勘误互不影响，可分别推进。
+>
+> v1.0.1 仅改动 §2.3 的数据集指纹定义，其余条款与 v1.0 完全相同。
+> 2026-09-21 的两份契约确认纪要以 v1.0 为准，其 §2.3 相关描述由本版取代。
 
 ## 0. 本文件的效力
 
@@ -204,7 +222,7 @@ models/<model_name>/
   "framework_version": "1.7.2",
   "created_at": "2026-09-21T14:30:00+08:00",
   "random_seed": 42,
-  "split_manifest_sha256": "<data/processed/split_manifest.json 的 sha256>",
+  "dataset_fingerprint": "<64位十六进制>",
   "train_rows": 0,
   "hyperparameters": {},
   "max_length": null,
@@ -216,7 +234,30 @@ models/<model_name>/
 规定：
 
 - 上例中的 `0`、`""`、`{}` 均为待填占位，必须替换为真实值。
-- `split_manifest_sha256` 必填。它是「所有模型使用同一份无泄漏测试集」的**唯一硬证据**（AGENTS.md §12.4）。
+- **`dataset_fingerprint` 必填。** 它标识模型训练时所用的数据集，是「所有模型使用同一份无泄漏测试集」的**唯一硬证据**（AGENTS.md §12.4）。
+- 计算方式固定如下，`train` → `dev` → `test` 的**顺序不得调换**：
+
+  ```python
+  import hashlib
+  from pathlib import Path
+
+  def dataset_fingerprint(processed_dir: Path) -> str:
+      """按 docs/contracts.md §2.3 计算数据集指纹。"""
+      parts = [
+          hashlib.sha256((processed_dir / f"{split}.csv").read_bytes()).hexdigest()
+          for split in ("train", "dev", "test")
+      ]
+      return hashlib.sha256(":".join(parts).encode("utf-8")).hexdigest()
+  ```
+
+  即：先分别取三个 CSV 文件的 SHA-256（小写十六进制），按 `train:dev:test` 用半角冒号连接，
+  再对该字符串取 SHA-256。
+
+- `scripts/verify_model_contract.py` 会用同样的方式，**从 `data/processed/` 的 CSV 文件重新计算**指纹，
+  再与模型记录的值比对。校验不依赖 `split_manifest.json` 或任何其它元数据文件。
+- **禁止改用 `split_manifest.json` 的整体哈希。** 该文件含 `created_at`，每次重新生成数据都会变化；
+  即使三个 CSV 字节完全一致，指纹仍会漂移，模型会被误判为基于旧数据训练。
+  这是 v1.0 的缺陷（见 `reports/m3-validation.md`），不得回退。
 - `train_rows` 填实际参与训练的行数，不含 dev 与 test。
 - `max_length` 仅 BERT 类模型填写实际值，其余填 `null`。该值必须由本数据集 token 长度分布决定，不得照搬其它项目的 32（AGENTS.md §5.4）。
 - `device` 记录实际训练设备。本项目当前为纯 CPU，填 `"cpu"`。
@@ -416,7 +457,7 @@ python scripts/verify_model_contract.py models/<model_name>
 | 1.4 泄漏检查为 0 | AGENTS.md §3.1、§12.4 |
 | 2.1 四件套 | AGENTS.md §7.3「标签映射必须与模型一起保存」 |
 | 2.2 特征处理器一起保存 | AGENTS.md §5.2 |
-| 2.3 `split_manifest_sha256` | AGENTS.md §12.4「相同且无泄漏的最终测试集」 |
+| 2.3 `dataset_fingerprint` | AGENTS.md §12.4「相同且无泄漏的最终测试集」 |
 | 2.4 `test` 保持 null | AGENTS.md §6「测试集只用于最终确认」 |
 | 2.4 `cost` 字段 | AGENTS.md §5.6、§6 对比表 |
 | 3.5 错误码 | AGENTS.md §5.7「对空输入、超长输入和异常请求给出清晰错误」 |
@@ -424,11 +465,12 @@ python scripts/verify_model_contract.py models/<model_name>
 
 ## 五、生效确认
 
-本契约由 LanQvJian 起草，**需经 HuMingChang 与 HongSenYuan 确认后正式生效**。
-确认前如对任何条款有异议，应立即提出并记录在 `reports/meeting-notes/`。
+本契约由 LanQvJian 起草。v1.0.1 已经 HuMingChang 与 HongSenYuan 确认，于
+2026-09-21 正式生效；后续如对条款有异议，应立即提出并记录在
+`reports/meeting-notes/`。
 
 | 成员 | 确认状态 | 日期 |
 | --- | --- | --- |
 | LanQvJian | 已确认（起草人） | 2026-09-21 |
-| HuMingChang | 待确认 | |
-| HongSenYuan | 已确认（附 6 项确认后待办，见 `reports/meeting-notes/2026-09-21-contract-confirmation-hongsenyuan.md`） | 2026-09-21 |
+| HuMingChang | 已确认 v1.0.1（见 `reports/meeting-notes/2026-09-21-contract-confirmation-v1.0.1-humingchang.md`） | 2026-09-21 |
+| HongSenYuan | 已确认 v1.0.1；v1.0 的 6 项确认后待办继续有效（见 `reports/meeting-notes/2026-09-21-contract-confirmation-hongsenyuan.md`） | 2026-09-21 |

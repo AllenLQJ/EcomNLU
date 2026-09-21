@@ -12,7 +12,7 @@
 | --- | --- | --- | --- | --- | --- |
 | 9 月 20 日前 | M1 项目初始化 | LanQvJian | 全员 | 目录、依赖、README、数据来源、分工、计划完整；下载脚本和基础检查通过 | 已完成 |
 | 9 月 21 日上午 | M2 数据闭环 | HuMingChang | 全员 | 清洗和 8:1:1 分层划分可复现；无明显文本跨集合泄漏；核心 EDA 图表和结论齐全 | 待验收 |
-| 9 月 21 日下午 | M3 基线闭环 | HuMingChang | LanQvJian | TF-IDF 线性模型与随机森林完成；模型可重载；测试指标完整 | 未开始 |
+| 9 月 21 日下午 | M3 基线闭环 | HuMingChang | LanQvJian | TF-IDF 线性模型与随机森林完成；模型可重载；测试指标完整 | 待验收 |
 | 9 月 21 日下午至晚间 | M4 高级模型 | HongSenYuan | HuMingChang | FastText 完成；BERT 至少完成可复现训练与评估；使用同一测试集对比 | 未开始 |
 | 9 月 21 日晚间至 9 月 22 日上午 | M5 优化与创新 | HongSenYuan | LanQvJian | 在时间允许范围内完成一种模型优化或情感任务；未完成项如实标记 | 未开始 |
 | 9 月 21 日下午至 9 月 22 日 10:00 | M6 部署与答辩 | LanQvJian | 全员 | Web/API 真实推理通过；演示材料和离线备用方案齐全 | 未开始 |
@@ -57,14 +57,40 @@
 - [ ] LanQvJian / HongSenYuan 目视检查 `reports/figures/` 八张图的排版与可读性
 - [ ] 确认 `requirements.txt` 的 `pandas<3.0` 约束与实际 3.0.5 的取舍（见 `reports/environment.md`）
 
-### M3 下一步
+### M3 待验收（2026-09-21 下午完成）
 
-- [ ] 编写中文分词与 TF-IDF 特征模块（`src/features/`）
-- [ ] 保存向量器与标签映射，确保推理阶段复用同一预处理
-- [ ] 完成逻辑回归 / LinearSVC 线性基线
-- [ ] 完成随机森林并对比，不以假设代替验证
-- [ ] 在验证集上按 Macro-F1 选模，输出分类报告与混淆矩阵
-- [ ] 与 HongSenYuan 对齐统一评估接口，保证所有模型使用同一测试集
+- [x] 编写中文分词与 TF-IDF 特征模块 → `src/features/text_features.py`
+- [x] 保存向量器与标签映射，确保推理阶段复用同一预处理 → 预处理封装进向量器，
+      适配器直接喂原始文本；重构后清洗与划分数据未变
+- [x] 完成逻辑回归 / LinearSVC 线性基线 → `tfidf_logreg`、`tfidf_svm`
+      （后者经 `CalibratedClassifierCV` 校准以满足契约 §2.5 的概率要求）
+- [x] 完成随机森林并对比，不以假设代替验证 → `tfidf_rf` 三项指标全面垫底，
+      体积 900 MB、延迟高两个数量级
+- [x] 在验证集上按 Macro-F1 选模，输出分类报告与混淆矩阵 →
+      `reports/m3-baseline-comparison.md`，选定 `tfidf_svm`（验证集 Macro-F1 = 0.8923）
+- [x] 与 HongSenYuan 对齐统一评估接口，保证所有模型使用同一测试集 →
+      `src/evaluation/metrics.py` 提供全队共用口径；推理成本经统一入口实测
+
+关键数字：特征方案经实测选定**字符级 2-3 gram**（验证集 0.8852，优于词级 unigram
+0.8673）；三个模型的契约校验各 **15 项通过、0 项失败**；测试 107 项全部通过。
+
+证据见 `reports/daily-reports/2026-09-21-HuMingChang.md` 的 M3 部分与
+`reports/m3-baseline-results.json`。
+
+待非作者成员复核：
+
+- [ ] LanQvJian 用 `python scripts/verify_model_contract.py` 复核三个模型的契约合规
+- [ ] HongSenYuan 确认 M4 与本报告使用**同一份测试集**（数据集指纹见报告第 1 节，
+      按契约 §2.3 v1.0.1 由三个划分 CSV 的内容哈希算出，不受 `created_at` 影响）
+- [ ] 确认 `models/tfidf_svm/`（105.98 MB）作为 M6 演示候选模型的可行性
+
+### M4 / M5 下一步（HongSenYuan）
+
+- [ ] FastText（字符级与词级）训练与评估
+- [ ] BERT 微调：`max_length` 依 `reports/eda-report.md` 第 7 节结论取 128 或 256，
+      不得照搬原项目的 32
+- [ ] 与 `models/tfidf_svm/` 在同一测试集上对比，填入统一指标的 `metrics.json`
+- [ ] 模型优化或情感二分类扩展
 
 ## 风险与应对
 

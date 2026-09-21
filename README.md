@@ -14,16 +14,17 @@
 
 - [x] M1：项目初始化
 - [x] M2：数据清洗、分层划分与 EDA（待团队复核，见 `docs/development-plan.md`）
-- [ ] M3：TF-IDF 线性基线与随机森林（尚未开始）
-- [x] M4：FastText 与 BERT（模型、统一对比、错误分析与主部署模型决策已完成，见 `reports/model-comparison.md`）
+- [x] M3：TF-IDF 特征、线性基线与随机森林对比（待团队复核）
+- [x] M4：FastText 与 BERT（统一对比、错误分析与主部署模型决策已完成）
 - [ ] M5：模型优化与情感分析扩展
 - [ ] M6：Web 部署与答辩材料
 
 M2 已产出可复现的数据闭环：原始 62,774 条 → 清洗后 62,752 条，
 按类别分层划分为 50,206 / 6,274 / 6,272，跨集合重复文本为 0。
-
-M4 已完成 4 个 FastText 变体与 1 个 BERT 中文微调模型的训练、统一入口评测与对比；
-M3 的传统基线尚未开始，因此对比表中的「传统基线」「随机森林」两族如实标注为未提供。
+M3 已产出三个传统模型基线，选定 `tfidf_svm`（测试集 Macro-F1 = 0.8883）。
+M4 已完成 4 个 FastText 变体与 1 个 BERT 中文微调模型，并依据验证集 Macro-F1
+选定主部署模型 `models/bert_base_chinese`（见 `reports/model-selection.md`）。
+模型训练与端到端预测的演示页面（M6）尚未完成。
 
 ## 项目周期
 
@@ -120,7 +121,42 @@ python scripts/report_environment.py    # 依赖与实际环境比对记录
 python scripts/verify_data_contract.py
 ```
 
-## 模型训练与评估
+## 传统模型基线（M3）
+
+训练 TF-IDF 基线与评估：
+
+```powershell
+python scripts/train_baseline.py                 # 完整训练，约 6-7 分钟
+python scripts/train_baseline.py --quick         # 小样本冒烟，用于快速验证流程
+python scripts/train_baseline.py --skip-ablation # 跳过特征方案对照，直接用默认配置
+```
+
+脚本会：只用训练集拟合向量器 → 在验证集上按 **Macro-F1** 选模 → 写出三个模型的
+契约产物 → 通过统一入口实测推理成本 → 生成对比报告。
+
+| 产物 | 路径 |
+| --- | --- |
+| 模型产物（每个模型 5 个文件） | `models/{tfidf_logreg,tfidf_svm,tfidf_rf}/` |
+| 模型对比报告 | `reports/m3-baseline-comparison.md` |
+| 机器可读结果（含调参与对照明细） | `reports/m3-baseline-results.json` |
+
+模型契约用统一校验器验收（对每个模型逐项校验文件、字段、类别顺序与真实推理）：
+
+```powershell
+python scripts/verify_model_contract.py
+```
+
+实测结果（测试集 Macro-F1）：`tfidf_svm` 0.8883 ＞ `tfidf_logreg` 0.8777 ＞ `tfidf_rf` 0.8281。
+**随机森林并未胜出**——它在三项指标上均垫底，体积 900 MB、单条延迟 72 ms，
+不适合部署；结论与取舍依据见对比报告。
+
+模型文件较大（合计约 1.05 GB），已被 `.gitignore` 排除，不进入版本库；
+首次使用需运行上述训练命令或向队友索取。
+
+## 高级模型（M4：FastText 与 BERT）
+
+M4 的两个模型族与 M3 基线使用同一套契约产物与统一评测入口，指标可以直接横向比较；
+选模依据同为**验证集 Macro-F1**（AGENTS.md §6）。
 
 ### FastText
 
@@ -144,6 +180,7 @@ python scripts/train_bert.py --batch-size 32 --max-length 192 --epochs 3
 
 `max_length` 由本数据集 token 长度分布实测确定（见 `reports/bert-token-lengths.json`），
 默认 192 对应 96.3% 覆盖率，**不是**照搬其它项目新闻标题任务的 32。
+训练超参、逐 epoch 曲线、`max_length` 依据与已知局限见 `reports/bert-training-report.md`。
 
 ### 统一评测与对比
 
@@ -156,8 +193,9 @@ python scripts/compare_models.py --error-analysis-model models/bert_base_chinese
 python scripts/verify_model_contract.py models/<model_name>
 ```
 
-`scripts/compare_models.py` 只读取各模型目录里真实写出的 `metrics.json`，未完成的模型族
-如实标注为「未提供」；同时输出错误分析报告（最易混淆类别对 + 高置信度错误样本）。
+`scripts/compare_models.py` 只读取各模型目录里真实写出的 `metrics.json`，本机缺少对应
+模型目录的模型族如实标注为「未提供」（例如没有 M3 的 `models/tfidf_*` 时）；同时输出
+错误分析报告（最易混淆类别对 + 高置信度错误样本 + 结论）。
 
 | 产物 | 路径 |
 | --- | --- |
@@ -171,6 +209,58 @@ python scripts/verify_model_contract.py models/<model_name>
 NVIDIA RTX 4060 Laptop GPU、bf16 混合精度）上完成；FastText 训练与全部评测在项目 `venv`
 （`torch 2.14.0+cpu`）上完成。实际环境与设备记录在 `models/bert_base_chinese/metadata.json`
 的 `environment` 字段，`metrics.json` 的 `cost.measured_on` 标明延迟是在哪种设备上实测的。
+
+## 预测与打分
+
+三个模型各有一个独立脚本，功能完全一致，只是默认模型不同
+（都是 `scripts/predict.py` 的薄封装，共用同一份实现）：
+
+| 脚本 | 默认模型 |
+| --- | --- |
+| `scripts/predict_logreg.py` | `models/tfidf_logreg` |
+| `scripts/predict_svm.py` | `models/tfidf_svm`（M3 选定的最优传统模型） |
+| `scripts/predict_rf.py` | `models/tfidf_rf` |
+
+单条评论预测，返回类别、置信度与 Top-K 概率：
+
+```powershell
+python scripts/predict_svm.py --text "这本书内容不错，作者水平很高，值得一读"
+python scripts/predict_svm.py --text "手机很好用，电池耐用" --top-k 5
+```
+
+**不带任何参数时默认使用验证集 `data/processed/dev.csv`**：它自带真实标签，
+因此一条命令即可同时看到逐条预测预览（✓/✗ 标注）与真实评估分数：
+
+```powershell
+python scripts/predict_svm.py                 # 预览前 10 条 + dev 全量分数
+python scripts/predict_svm.py --preview 0     # 只看分数，不列预览
+```
+
+批量预测（CSV 中的一列评论；CSV 自带标签列时会一并显示预测对错与准确率）：
+
+```powershell
+python scripts/predict_svm.py --file data/processed/dev.csv --limit 20
+python scripts/predict_svm.py --file reviews.csv --text-column review --limit 20
+```
+
+对某个划分跑评估分数（Macro-F1、Accuracy、逐类别指标；可存 JSON）：
+
+```powershell
+python scripts/predict_svm.py --eval test
+python scripts/predict_svm.py --eval dev --output reports/score-svm-dev.json
+```
+
+三个脚本都支持 `--model` 临时覆盖默认模型，例如
+`python scripts/predict_logreg.py --model models/tfidf_svm --text "..."`。
+
+预测传入的是**原始评论文本**，清洗与分词由模型目录内的 `vectorizer.joblib`
+在内部完成，因此不需要预先清洗。脚本本身不实现任何推理逻辑，
+全部走 `src.inference.load_predictor`——也就是 M6 的 Web 服务将要调用的同一入口，
+所以命令行与页面的分数必然一致。
+
+> 已知失败模式：模型对**明确提到「手机」的短评论**可能高置信度判为「平板」。
+> 原因是训练数据中「手机」出现在平板评论里的绝对次数多于手机评论（1,085 : 499），
+> 词袋模型无法区分「手机很好用」与「比手机屏幕大」。详见对比报告第 6 节。
 
 ## 运行环境
 

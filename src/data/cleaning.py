@@ -150,16 +150,78 @@ def _escape_format_char(match: re.Match[str]) -> str:
     return f"[U+{ord(match.group()):04X}]"
 
 
-def _strip_unicode_format(value: str) -> str:
+def strip_control_chars(value: str) -> str:
+    """删除单个文本中的 ASCII 控制字符。
+
+    这是清洗第 2 步的单条文本实现，供清洗流水线与特征提取阶段共同调用，
+    以保证训练与推理使用完全相同的文本修复逻辑。
+
+    参数：
+        value：待处理的评论文本。
+
+    返回：
+        删除控制字符之后的文本。
+    """
+    return CONTROL_CHAR_PATTERN.sub("", value)
+
+
+def strip_unicode_format_chars(value: str) -> str:
     """删除单个文本中的 Unicode 格式字符（类别 Cf）。
 
-    Args:
-        value: 待处理的评论文本。
+    这是清洗第 3 步的单条文本实现，删除 BOM、零宽空格与连接符、软连字符等
+    不可见字符，但保留样本本身。
 
-    Returns:
+    参数：
+        value：待处理的评论文本。
+
+    返回：
         删除格式字符之后的文本。
     """
     return UNICODE_FORMAT_PATTERN.sub("", value)
+
+
+def unescape_html_entities(value: str) -> str:
+    """把单个文本中的 HTML 实体还原为真实字符。
+
+    这是清洗第 4 步的单条文本实现。
+
+    参数：
+        value：待处理的评论文本。
+
+    返回：
+        实体已还原的文本。
+    """
+    return html.unescape(value)
+
+
+def normalize_review(value: str) -> str:
+    """对单条评论文本执行全部文本修复步骤，返回可直接送入特征提取的文本。
+
+    步骤顺序与 :func:`clean_reviews` 完全一致：
+
+    1. 删除 ASCII 控制字符；
+    2. 删除 Unicode 格式字符（BOM、零宽字符）；
+    3. 还原 HTML 实体；
+    4. 归一化空白（含全角空格 U+3000 与不换行空格 U+00A0）。
+
+    该顺序不可调整：先删不可见字符再还原实体，才能避免还原出的字符被误判为噪声。
+
+    **推理阶段的预处理必须与训练阶段一致**（AGENTS.md §5.2、``docs/contracts.md`` §2.2）。
+    由于 ``src/inference/sklearn_adapter.py`` 是把**原始文本**直接交给向量器的，
+    向量器内部必须调用本函数完成清洗，因此这里是训练与推理共用的唯一实现。
+    本函数由清洗流水线的各个单条文本步骤组合而成，不重复实现规则，避免两处逐渐走样。
+
+    参数：
+        value：原始评论文本（未清洗）。
+
+    返回：
+        清洗后的文本；输入不是字符串时先转成字符串。
+    """
+    text = str(value)
+    text = strip_control_chars(text)
+    text = strip_unicode_format_chars(text)
+    text = unescape_html_entities(text)
+    return normalize_whitespace(text)
 
 
 def _preview(text: str) -> str:
@@ -275,19 +337,7 @@ def clean_reviews(
 
     # --- 步骤 2：ASCII 控制字符 -------------------------------------------
     original = working[text_column].astype("string")
-
-    def _remove_control(value: str) -> str:
-        """删除单个文本中的 ASCII 控制字符。
-
-        Args:
-            value: 待处理的评论文本。
-
-        Returns:
-            删除控制字符之后的文本。
-        """
-        return CONTROL_CHAR_PATTERN.sub("", value)
-
-    without_control = original.map(_remove_control)
+    without_control = original.map(strip_control_chars)
     control_mask = without_control != original
     working[text_column] = without_control
     _record(
@@ -303,7 +353,7 @@ def clean_reviews(
     )
 
     # --- 步骤 3：Unicode 格式字符（BOM、零宽连接符） ----------------------
-    without_format = without_control.map(_strip_unicode_format)
+    without_format = without_control.map(strip_unicode_format_chars)
     format_mask = without_format != without_control
     working[text_column] = without_format
     _record(
@@ -320,7 +370,7 @@ def clean_reviews(
     )
 
     # --- 步骤 4：HTML 实体 ------------------------------------------------
-    unescaped = without_format.map(html.unescape)
+    unescaped = without_format.map(unescape_html_entities)
     entity_mask = unescaped != without_format
     working[text_column] = unescaped
     _record(
