@@ -189,8 +189,11 @@ class FastTextCategoryPredictor(BaseCategoryPredictor):
     def predict_proba(self, texts: list[str]) -> list[dict[str, float]]:
         """返回每个样本覆盖全部类别的概率。
 
-        FastText 的 ``predict`` 给出的是对全部标签做 softmax 后的概率，因此请求
-        ``k = 类别总数`` 时各项之和已经为 1，不需要再做归一化。
+        FastText 的 ``predict`` 给出的是对全部标签做 softmax 后的概率，请求
+        ``k = 类别总数`` 时理论上各项之和为 1；但实测该 softmax 由 float32 计算，
+        总和会出现 1.0001 这类微小越界，夹紧到 ``[0, 1]`` 后总和仍可能偏离 1。
+        契约 §2.5 要求输出是覆盖全部类别的概率分布，因此最后按总和归一化：
+        只做等比缩放，不改变 argmax、也不改变类别之间的排序。
         """
         items = validate_texts(texts)
         results: list[dict[str, float]] = []
@@ -242,5 +245,11 @@ class FastTextCategoryPredictor(BaseCategoryPredictor):
                     f"FastText 概率和必须约为 1，实际为 {probability_sum:.6f}；"
                     "请检查模型标签与 label_mapping.json 是否一致"
                 )
+            # 等比归一，抹平 float32 的微小越界，使总和精确为 1（见方法说明）。
+            if probability_sum > 0.0:
+                probabilities = {
+                    category: value / probability_sum
+                    for category, value in probabilities.items()
+                }
             results.append(probabilities)
         return results

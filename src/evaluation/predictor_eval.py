@@ -16,12 +16,11 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from src.evaluation.metrics import (
-    classification_metrics,
+    compute_metrics_block,
     directory_size_bytes,
-    measure_cost,
-    write_metrics_json,
+    measure_inference_cost,
 )
-from src.models.artifact import PROCESSED_DIR, read_split
+from src.models.artifact import PROCESSED_DIR, read_split, write_metrics_json
 
 SUMMARY_KEYS = (
     "accuracy",
@@ -31,10 +30,37 @@ SUMMARY_KEYS = (
     "weighted_f1",
 )
 
+# 指标精度：统一四舍五入到 6 位小数，保证重新评测时与已产出的 metrics.json 逐位一致。
+METRIC_DIGITS = 6
+
 
 def summarize(block: dict[str, Any]) -> dict[str, Any]:
     """只保留汇总指标，便于写入报告而不必携带混淆矩阵。"""
     return {key: block[key] for key in SUMMARY_KEYS}
+
+
+def round_metrics_block(block: dict[str, Any], digits: int = METRIC_DIGITS) -> dict[str, Any]:
+    """把指标块中的浮点数统一舍入到指定位数。
+
+    指标本身只由 ``src.evaluation.metrics.compute_metrics_block`` 计算一次
+    （AGENTS.md §12.4 要求所有模型同一口径）；本函数只做精度归一，让 M4 期间产出的
+    6 位小数指标在重新评测后仍然逐位可比。
+    """
+    rounded: dict[str, Any] = {}
+    for key, value in block.items():
+        if isinstance(value, float):
+            rounded[key] = round(value, digits)
+        elif key == "per_class" and isinstance(value, dict):
+            rounded[key] = {
+                name: {
+                    field: round(number, digits) if isinstance(number, float) else number
+                    for field, number in values.items()
+                }
+                for name, values in value.items()
+            }
+        else:
+            rounded[key] = value
+    return rounded
 
 
 def model_size_bytes(model_dir: Path) -> int:
@@ -77,7 +103,8 @@ def evaluate_model_dir(
 
     rows = read_split(split, categories, processed_dir)
     texts = [text for text, _ in rows]
-    y_true = [label for _, label in rows]
+    category_list = [str(name) for name in categories]
+    y_true = [category_list[label] for _, label in rows]
 
     predictor = load_predictor(model_dir)
     started = time.perf_counter()
@@ -85,16 +112,17 @@ def evaluate_model_dir(
     elapsed = time.perf_counter() - started
     # 契约 §2.5：预测类别即最高概率类别。用同一份概率推出预测，避免两套逻辑不一致。
     labels = [max(item, key=item.get) for item in probabilities]
-    predictions = [list(categories).index(name) for name in labels]
 
-    block = classification_metrics(y_true, predictions, categories)
+    block = round_metrics_block(
+        compute_metrics_block(y_true, labels, categories=category_list)
+    )
     block["elapsed_seconds"] = round(elapsed, 3)
 
-    cost = measure_cost(
-        predict_batch=predictor.predict_proba,
-        sample_texts=texts[:cost_sample_size],
+    cost = measure_inference_cost(
+        predictor.predict_proba,
+        probe_texts=texts[:cost_sample_size],
         model_size_bytes=model_size_bytes(model_dir),
-        device=getattr(predictor, "device", "cpu"),
+        device=str(getattr(predictor, "device", "cpu")),
     )
 
     metrics_path = Path(model_dir) / "metrics.json"

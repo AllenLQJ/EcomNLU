@@ -1,10 +1,10 @@
 """模型产物契约的共用实现（``docs/contracts.md`` 第二章）。
 
-FastText、BERT 与优化脚本都要产出同一套四件套，并且都必须满足以下硬性要求：
+FastText、BERT 等模型脚本都要产出同一套四件套，并且都必须满足以下硬性要求：
 
 * ``label_mapping.json`` 必须与 ``data/processed/label_mapping.json`` **逐字节相同**，
   只能复制不能重新生成（契约 §2.1）；
-* ``metadata.json`` 必须包含 §2.3 的全部字段，其中 ``split_manifest_sha256``
+* ``metadata.json`` 必须包含 §2.3 的全部字段，其中 ``dataset_fingerprint``
   是"所有模型使用同一份无泄漏测试集"的唯一硬证据；
 * 训练数据只能来自 ``data/processed/`` 中通过数据契约校验的划分。
 
@@ -18,15 +18,27 @@ import hashlib
 import json
 import shutil
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 
 from src.data.config import PROJECT_ROOT
-from src.evaluation.metrics import now_iso
+from src.evaluation.metrics import COST_KEYS, beijing_timestamp
 
 PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
 MODELS_DIR = PROJECT_ROOT / "models"
 
 REQUIRED_SPLITS = ("train", "dev", "test")
+
+# 契约 §2.3（v1.0.1）要求数据集指纹按 train → dev → test 的顺序计算，顺序不得调换。
+SPLIT_FILES = ("train.csv", "dev.csv", "test.csv")
+
+# 契约 §2.4 规定的汇总指标名，写入 metrics.json 前必须齐全。
+REPORT_METRICS = (
+    "accuracy",
+    "macro_precision",
+    "macro_recall",
+    "macro_f1",
+    "weighted_f1",
+)
 
 
 def sha256_of(path: Path) -> str:
@@ -57,15 +69,26 @@ def load_label_mapping(processed_dir: Path | None = None) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def split_manifest_sha256(processed_dir: Path | None = None) -> str:
-    """计算 ``split_manifest.json`` 的 SHA-256，作为训练数据的指纹。"""
+def dataset_fingerprint(processed_dir: Path | None = None) -> str:
+    """按契约 §2.3（v1.0.1）计算数据集指纹。
+
+    指纹由 train/dev/test 三个 CSV 的**文件内容**决定，顺序固定为 ``train:dev:test``：
+    先分别取三个文件的 SHA-256，用半角冒号连接后再取一次 SHA-256。
+
+    刻意不使用 ``split_manifest.json`` 的整体哈希：该文件含每次运行都会变化的
+    ``created_at``，会让同一份数据产生不同指纹（v1.0 的缺陷，见
+    ``docs/contracts.md`` 的变更记录与 ``reports/m3-validation.md``）。
+    """
     directory = Path(processed_dir) if processed_dir else PROCESSED_DIR
-    manifest = directory / "split_manifest.json"
-    if not manifest.is_file():
-        raise FileNotFoundError(
-            f"缺少 {manifest}；请先运行 scripts/split_data.py 生成契约数据（M2）"
-        )
-    return sha256_of(manifest)
+    digests: list[str] = []
+    for name in SPLIT_FILES:
+        path = directory / name
+        if not path.is_file():
+            raise FileNotFoundError(
+                f"缺少 {path}；请先运行 scripts/split_data.py 生成契约数据（M2）"
+            )
+        digests.append(sha256_of(path))
+    return hashlib.sha256(":".join(digests).encode("utf-8")).hexdigest()
 
 
 def read_split(
@@ -162,9 +185,9 @@ def write_metadata(
         "task": task,
         "framework": framework,
         "framework_version": framework_version,
-        "created_at": now_iso(),
+        "created_at": beijing_timestamp(),
         "random_seed": random_seed,
-        "split_manifest_sha256": split_manifest_sha256(processed_dir),
+        "dataset_fingerprint": dataset_fingerprint(processed_dir),
         "train_rows": int(train_rows),
         "hyperparameters": hyperparameters,
         "max_length": max_length,
@@ -189,3 +212,37 @@ def write_json(path: Path, payload: Any) -> Path:
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     return path
+
+
+def write_metrics_json(
+    model_dir: Path,
+    model_name: str,
+    categories: Sequence[str],
+    dev: dict[str, Any],
+    cost: dict[str, Any],
+    test: dict[str, Any] | None = None,
+) -> Path:
+    """写出契约 §2.4 规定的 ``metrics.json``。
+
+    ``test`` 默认必须为 ``None``：选模阶段只允许使用验证集，测试集只在最终确认时
+    评估一次（契约 §2.4、AGENTS.md §6）。写出前校验 cost 与指标块字段齐全，
+    避免把缺字段的产物交给下游对比脚本。
+    """
+    payload = {
+        "model_name": model_name,
+        "categories": list(categories),
+        "dev": dev,
+        "test": test,
+        "cost": cost,
+    }
+    missing = [key for key in COST_KEYS if key not in cost]
+    if missing:
+        raise ValueError(f"cost 缺少字段：{missing}")
+    for name, block in (("dev", dev), ("test", test)):
+        if block is None:
+            continue
+        absent = [key for key in REPORT_METRICS if key not in block]
+        if absent:
+            raise ValueError(f"{name} 指标缺少字段：{absent}")
+
+    return write_json(Path(model_dir) / "metrics.json", payload)

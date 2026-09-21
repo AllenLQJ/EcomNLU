@@ -30,6 +30,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.data.config import load_config  # noqa: E402
+from src.evaluation.metrics import top_confusions  # noqa: E402
 from src.models.artifact import MODELS_DIR, PROCESSED_DIR, load_categories, read_split, write_json  # noqa: E402
 
 DEFAULT_COMPARISON_MD = PROJECT_ROOT / "reports" / "model-comparison.md"
@@ -115,29 +116,29 @@ def render_comparison(rows: Sequence[dict[str, Any]]) -> str:
     provided = {row["name"] for row in rows}
     for family, names in EXPECTED_FAMILIES:
         found = [name for name in names if name in provided]
-        status = "、".join(found) if found else "未提供（对应阶段尚未完成）"
+        status = (
+            "、".join(found)
+            if found
+            else "未提供（本机 `models/` 下没有该族模型目录：未训练或未拷贝）"
+        )
         lines.append(f"| {family} | {status} |")
     return "\n".join(lines) + "\n"
 
 
-def confusion_pairs(
+def confused_pair_rows(
     matrix: Sequence[Sequence[int]], categories: Sequence[str], top_n: int = 10
 ) -> list[dict[str, Any]]:
-    """从混淆矩阵中挑出最容易被混淆的类别对（排除对角线）。"""
-    pairs: list[dict[str, Any]] = []
-    for true_index, row in enumerate(matrix):
-        for pred_index, count in enumerate(row):
-            if true_index == pred_index or not count:
-                continue
-            pairs.append(
-                {
-                    "true": categories[true_index],
-                    "pred": categories[pred_index],
-                    "count": int(count),
-                }
-            )
-    pairs.sort(key=lambda item: item["count"], reverse=True)
-    return pairs[:top_n]
+    """把 ``src.evaluation.metrics.top_confusions`` 的结果转成本报告需要的字段名。
+
+    混淆对的挑选逻辑（排除对角线、按次数降序）只在 ``src.evaluation.metrics`` 里实现一次，
+    这里只做字段名适配，避免两个模块各写一套而产生口径差异。
+    """
+    return [
+        {"true": true_category, "pred": predicted_category, "count": count}
+        for true_category, predicted_category, count in top_confusions(
+            matrix, categories, limit=top_n
+        )
+    ]
 
 
 def collect_errors(
@@ -183,7 +184,7 @@ def collect_errors(
         "errors": len(errors),
         "error_rate": round(len(errors) / len(texts), 4) if texts else None,
         "macro_f1": block.get("macro_f1"),
-        "confused_pairs": confusion_pairs(
+        "confused_pairs": confused_pair_rows(
             block.get("confusion_matrix") or [[0] * len(categories)] * len(categories), categories
         ),
         "per_class": block.get("per_class"),

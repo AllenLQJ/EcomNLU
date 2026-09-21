@@ -678,17 +678,28 @@ class TrainedModelArtifactTests(unittest.TestCase):
             self.skipTest("models/ 下没有已训练的模型（含 metadata.json 的子目录）")
 
     def test_every_model_has_the_four_piece_artifact(self) -> None:
-        """每个模型目录必须含契约 §2.1 的四件套与模型本体。"""
+        """每个模型目录必须含契约 §2.1 的四件套与模型本体。
+
+        模型本体的文件名随框架而定（契约 §2.2）：sklearn 为 ``model.joblib``（并必须有
+        ``vectorizer.joblib`` 特征处理器）、fastText 为 ``model.bin``、transformers 为
+        ``model/`` 目录 + ``tokenizer/``，因此不能只认 sklearn 的写法。
+        """
         for model_dir in self.model_dirs:
             with self.subTest(model=model_dir.name):
-                for filename in (
-                    "model.joblib",
-                    "vectorizer.joblib",
-                    "label_mapping.json",
-                    "metadata.json",
-                    "metrics.json",
-                ):
+                for filename in ("label_mapping.json", "metadata.json", "metrics.json"):
                     self.assertTrue((model_dir / filename).is_file(), filename)
+                self.assertTrue(
+                    any(
+                        (model_dir / name).exists()
+                        for name in ("model.joblib", "model.bin", "model")
+                    ),
+                    "缺少模型本体（model.joblib / model.bin / model）",
+                )
+                if (model_dir / "model.joblib").is_file():
+                    # sklearn 模型：特征处理器必须一起保存（AGENTS.md §5.2）
+                    self.assertTrue(
+                        (model_dir / "vectorizer.joblib").is_file(), "vectorizer.joblib"
+                    )
 
     def test_label_mapping_matches_the_data_contract_byte_for_byte(self) -> None:
         """模型目录的标签映射必须与数据契约那份逐字节相同。"""
@@ -701,8 +712,6 @@ class TrainedModelArtifactTests(unittest.TestCase):
                     (model_dir / "label_mapping.json").read_bytes(), source.read_bytes()
                 )
 
-    def test_metadata_records_the_current_split_manifest(self) -> None:
-        """数据指纹必须与当前清单一致，否则模型是在旧数据上训练的。"""
     def test_metadata_records_the_current_dataset_fingerprint(self) -> None:
         """数据指纹必须与当前划分数据一致，否则模型是用别的数据训练的。
 
@@ -828,6 +837,9 @@ class PredictScriptTests(unittest.TestCase):
         """相对模型路径必须按项目根目录解析，使脚本可在任意工作目录运行。"""
         from scripts.predict import resolve_model_dir
 
+        if not project_path("models/tfidf_svm").is_dir():
+            # 与同类测试保持一致：M3 产物被 .gitignore 排除，未训练时跳过而不是报错。
+            self.skipTest("models/tfidf_svm 尚未训练（见 README 的 M3 命令）")
         config = load_config()
         resolved = resolve_model_dir(config, "models/tfidf_svm")
         self.assertTrue(resolved.is_absolute())
