@@ -14,14 +14,16 @@
 
 - [x] M1：项目初始化
 - [x] M2：数据清洗、分层划分与 EDA（待团队复核，见 `docs/development-plan.md`）
-- [ ] M3：TF-IDF 线性基线与随机森林
-- [ ] M4：FastText 与 BERT
+- [ ] M3：TF-IDF 线性基线与随机森林（尚未开始）
+- [x] M4：FastText 与 BERT（模型、统一对比、错误分析与主部署模型决策已完成，见 `reports/model-comparison.md`）
 - [ ] M5：模型优化与情感分析扩展
 - [ ] M6：Web 部署与答辩材料
 
 M2 已产出可复现的数据闭环：原始 62,774 条 → 清洗后 62,752 条，
 按类别分层划分为 50,206 / 6,274 / 6,272，跨集合重复文本为 0。
-模型训练与端到端预测尚未开始。
+
+M4 已完成 4 个 FastText 变体与 1 个 BERT 中文微调模型的训练、统一入口评测与对比；
+M3 的传统基线尚未开始，因此对比表中的「传统基线」「随机森林」两族如实标注为未提供。
 
 ## 项目周期
 
@@ -117,6 +119,58 @@ python scripts/report_environment.py    # 依赖与实际环境比对记录
 ```powershell
 python scripts/verify_data_contract.py
 ```
+
+## 模型训练与评估
+
+### FastText
+
+```powershell
+# 语料生成 + 四个变体训练（字符级/词级 × 默认参数/自动调参）+ 验证集评测
+python scripts/train_fasttext.py --autotune-duration 120
+
+# 模型定稿后评测测试集
+python scripts/evaluate_model.py --model-dir models/fasttext_word_tuned --split test
+```
+
+训练文件按 AGENTS.md §5.3 逐行校验制表符、换行符、空文本与非法标签；
+推理时的切分方式记录在 `metadata.json` 的 `preprocess.tokenize`，由统一入口复用。
+
+### BERT 微调
+
+```powershell
+python scripts/fetch_pretrained.py bert-base-chinese   # 经镜像下载预训练权重到 models/pretrained/
+python scripts/train_bert.py --batch-size 32 --max-length 192 --epochs 3
+```
+
+`max_length` 由本数据集 token 长度分布实测确定（见 `reports/bert-token-lengths.json`），
+默认 192 对应 96.3% 覆盖率，**不是**照搬其它项目新闻标题任务的 32。
+
+### 统一评测与对比
+
+所有模型都通过 `src.inference` 的统一入口评测，保证「离线评测口径 = 线上推理口径」：
+
+```powershell
+python scripts/evaluate_model.py --model-dir models/<model_name> --split test   # 单模型评测
+python scripts/evaluate_model.py --all --split dev                              # 全部模型评测
+python scripts/compare_models.py --error-analysis-model models/bert_base_chinese --split test
+python scripts/verify_model_contract.py models/<model_name>
+```
+
+`scripts/compare_models.py` 只读取各模型目录里真实写出的 `metrics.json`，未完成的模型族
+如实标注为「未提供」；同时输出错误分析报告（最易混淆类别对 + 高置信度错误样本）。
+
+| 产物 | 路径 |
+| --- | --- |
+| FastText 模型 | `models/fasttext_{char,word}{,_tuned}/` |
+| BERT 微调模型 | `models/bert_base_chinese/` |
+| 训练报告 | `reports/fasttext-report.md`、`reports/bert-training-report.md` |
+| 对比与错误分析 | `reports/model-comparison.md`、`reports/error-analysis.md` |
+| 主部署模型决策 | `reports/model-selection.md` |
+
+**训练环境**：BERT 微调在 conda 环境 `bert_gpu`（Python 3.12.14、`torch 2.14.0+cu126`、
+NVIDIA RTX 4060 Laptop GPU、bf16 混合精度）上完成；FastText 训练与全部评测在项目 `venv`
+（`torch 2.14.0+cpu`）上完成。实际环境与设备记录在 `models/bert_base_chinese/metadata.json`
+的 `environment` 字段，`metrics.json` 的 `cost.measured_on` 标明延迟是在哪种设备上实测的。
 
 ## 运行环境
 

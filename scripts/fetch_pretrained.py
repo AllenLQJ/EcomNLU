@@ -33,7 +33,7 @@ DEFAULT_ENDPOINT = "https://hf-mirror.com"
 MANIFEST_NAME = "download_manifest.json"
 BEIJING = timezone(timedelta(hours=8))
 
-# 名称 -> (HuggingFace 仓库 id, 需要下载的文件)
+# 名称 -> (HuggingFace 仓库 id, 除权重外的必需文件)
 CANDIDATES: dict[str, tuple[str, list[str]]] = {
     "bert-base-chinese": (
         "bert-base-chinese",
@@ -43,8 +43,6 @@ CANDIDATES: dict[str, tuple[str, list[str]]] = {
             "tokenizer.json",
             "tokenizer_config.json",
             "special_tokens_map.json",
-            "model.safetensors",
-            "pytorch_model.bin",
         ],
     ),
     "rbt3": (
@@ -55,15 +53,15 @@ CANDIDATES: dict[str, tuple[str, list[str]]] = {
             "tokenizer.json",
             "tokenizer_config.json",
             "special_tokens_map.json",
-            "model.safetensors",
-            "pytorch_model.bin",
         ],
     ),
 }
 
 # 一个可用模型至少需要这些文件；权重允许 safetensors 或 bin 两种格式之一。
 REQUIRED_FILES = ("config.json", "vocab.txt")
-WEIGHT_FILES = ("model.safetensors", "pytorch_model.bin")
+# 权重格式按优先级尝试：先 safetensors，缺失时再回退到 bin。
+# 不要一次请求两种格式——那是同一份权重的两份拷贝，白白多下几百 MB。
+WEIGHT_PREFERENCES = ("model.safetensors", "pytorch_model.bin")
 
 
 def configure_environment(endpoint: str | None = None) -> str:
@@ -89,8 +87,8 @@ def sha256_of(path: Path) -> str:
 def missing_files(target_dir: Path) -> list[str]:
     """返回缺失的必需文件；权重文件完全不存在时也算缺。"""
     missing = [name for name in REQUIRED_FILES if not (target_dir / name).is_file()]
-    if not any((target_dir / name).is_file() for name in WEIGHT_FILES):
-        missing.append(" 或 ".join(WEIGHT_FILES))
+    if not any((target_dir / name).is_file() for name in WEIGHT_PREFERENCES):
+        missing.append(" 或 ".join(WEIGHT_PREFERENCES))
     return missing
 
 
@@ -98,7 +96,7 @@ def fetch_model(name: str, force: bool = False) -> Path:
     """下载并校验指定模型，返回本地目录。"""
     if name not in CANDIDATES:
         raise KeyError(f"未知模型 {name!r}，可选：{sorted(CANDIDATES)}")
-    repo_id, patterns = CANDIDATES[name]
+    repo_id, extra_patterns = CANDIDATES[name]
     target_dir = PRETRAINED_DIR / name
 
     if not force and not missing_files(target_dir):
@@ -109,9 +107,20 @@ def fetch_model(name: str, force: bool = False) -> Path:
 
     target_dir.mkdir(parents=True, exist_ok=True)
     started = time.time()
-    snapshot_download(
-        repo_id=repo_id, local_dir=str(target_dir), allow_patterns=patterns, max_workers=4
-    )
+
+    # 先只请求 safetensors；若该仓库没有 safetensors，再回退请求 bin。
+    for position, weight_file in enumerate(WEIGHT_PREFERENCES):
+        snapshot_download(
+            repo_id=repo_id,
+            local_dir=str(target_dir),
+            allow_patterns=[*extra_patterns, weight_file],
+            max_workers=4,
+        )
+        if not missing_files(target_dir):
+            break
+        if position + 1 < len(WEIGHT_PREFERENCES):
+            print(f"[info] {name} 未获得 {weight_file}，尝试下一种权重格式")
+
     missing = missing_files(target_dir)
     if missing:
         raise RuntimeError(f"{name} 下载后仍缺少：{missing}")
