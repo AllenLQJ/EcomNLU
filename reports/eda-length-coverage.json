@@ -1,0 +1,265 @@
+{
+  "max_length_coverage_on_train": [
+    {
+      "max_length": 32,
+      "coverage": 0.4702625184240927,
+      "truncated": 0.5297374815759073,
+      "truncated_rows": 26596
+    },
+    {
+      "max_length": 64,
+      "coverage": 0.7516233119547464,
+      "truncated": 0.2483766880452536,
+      "truncated_rows": 12470
+    },
+    {
+      "max_length": 96,
+      "coverage": 0.8517906226347448,
+      "truncated": 0.1482093773652552,
+      "truncated_rows": 7441
+    },
+    {
+      "max_length": 128,
+      "coverage": 0.8973429470581206,
+      "truncated": 0.10265705294187943,
+      "truncated_rows": 5154
+    },
+    {
+      "max_length": 160,
+      "coverage": 0.9257459267816596,
+      "truncated": 0.07425407321834043,
+      "truncated_rows": 3728
+    },
+    {
+      "max_length": 192,
+      "coverage": 0.9616380512289368,
+      "truncated": 0.03836194877106325,
+      "truncated_rows": 1926
+    },
+    {
+      "max_length": 256,
+      "coverage": 0.9788073138668685,
+      "truncated": 0.021192686133131522,
+      "truncated_rows": 1064
+    },
+    {
+      "max_length": 384,
+      "coverage": 0.9904991435286619,
+      "truncated": 0.009500856471338137,
+      "truncated_rows": 477
+    },
+    {
+      "max_length": 512,
+      "coverage": 0.9950802692905231,
+      "truncated": 0.004919730709476933,
+      "truncated_rows": 247
+    }
+  ],
+  "chinese_font": "Microsoft YaHei",
+  "word_frequency_on_train": {
+    "kept_token_total": 735747,
+    "distinct_words": 200,
+    "top_50": [
+      {
+        "word": "不错",
+        "count": 12215
+      },
+      {
+        "word": "酒店",
+        "count": 8970
+      },
+      {
+        "word": "京东",
+        "count": 6997
+      },
+      {
+        "word": "房间",
+        "count": 6441
+      },
+      {
+        "word": "服务",
+        "count": 4090
+      },
+      {
+        "word": "质量",
+        "count": 4081
+      },
+      {
+        "word": "苹果",
+        "count": 3856
+      },
+      {
+        "word": "喜欢",
+        "count": 3687
+      },
+      {
+        "word": "价格",
+        "count": 3056
+      },
+      {
+        "word": "满意",
+        "count": 2697
+      },
+      {
+        "word": "不好",
+        "count": 2564
+      },
+      {
+        "word": "收到",
+        "count": 2536
+      },
+      {
+        "word": "手机",
+        "count": 2496
+      },
+      {
+        "word": "快递",
+        "count": 2488
+      },
+      {
+        "word": "裤子",
+        "count": 2415
+      },
+      {
+        "word": "一般",
+        "count": 2359
+      },
+      {
+        "word": "入住",
+        "count": 2358
+      },
+      {
+        "word": "方便",
+        "count": 2274
+      },
+      {
+        "word": "包装",
+        "count": 2176
+      },
+      {
+        "word": "蒙牛",
+        "count": 2150
+      },
+      {
+        "word": "物流",
+        "count": 2075
+      },
+      {
+        "word": "速度",
+        "count": 2034
+      },
+      {
+        "word": "舒服",
+        "count": 1986
+      },
+      {
+        "word": "客服",
+        "count": 1966
+      },
+      {
+        "word": "很多",
+        "count": 1928
+      },
+      {
+        "word": "味道",
+        "count": 1914
+      },
+      {
+        "word": "屏幕",
+        "count": 1776
+      },
+      {
+        "word": "前台",
+        "count": 1756
+      },
+      {
+        "word": "购买",
+        "count": 1751
+      },
+      {
+        "word": "下次",
+        "count": 1750
+      },
+      {
+        "word": "差评",
+        "count": 1694
+      },
+      {
+        "word": "早餐",
+        "count": 1683
+      },
+      {
+        "word": "第一次",
+        "count": 1616
+      },
+      {
+        "word": "本书",
+        "count": 1612
+      },
+      {
+        "word": "这次",
+        "count": 1588
+      },
+      {
+        "word": "垃圾",
+        "count": 1571
+      },
+      {
+        "word": "这么",
+        "count": 1556
+      },
+      {
+        "word": "支持",
+        "count": 1555
+      },
+      {
+        "word": "效果",
+        "count": 1548
+      },
+      {
+        "word": "值得",
+        "count": 1521
+      },
+      {
+        "word": "便宜",
+        "count": 1504
+      },
+      {
+        "word": "很快",
+        "count": 1444
+      },
+      {
+        "word": "希望",
+        "count": 1429
+      },
+      {
+        "word": "华为",
+        "count": 1424
+      },
+      {
+        "word": "失望",
+        "count": 1409
+      },
+      {
+        "word": "设施",
+        "count": 1406
+      },
+      {
+        "word": "朋友",
+        "count": 1399
+      },
+      {
+        "word": "购物",
+        "count": 1347
+      },
+      {
+        "word": "晚上",
+        "count": 1339
+      },
+      {
+        "word": "性价比",
+        "count": 1325
+      }
+    ]
+  }
+}

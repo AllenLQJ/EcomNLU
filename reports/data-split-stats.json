@@ -1,0 +1,31 @@
+{
+  "ratios": {
+    "train": 0.8,
+    "dev": 0.1,
+    "test": 0.1
+  },
+  "seed": 42,
+  "group_count": 62720,
+  "multi_category_groups": 28,
+  "largest_group_size": 4,
+  "repair_moves": 1,
+  "sizes": {
+    "train": 50206,
+    "dev": 6274,
+    "test": 6272
+  },
+  "leakage": {
+    "pairwise_overlaps": {
+      "train__dev": 0,
+      "train__test": 0,
+      "dev__test": 0
+    },
+    "total_overlapping_texts": 0,
+    "unique_texts_per_split": {
+      "train": 50179,
+      "dev": 6271,
+      "test": 6270
+    },
+    "leakage_free": true
+  }
+}
