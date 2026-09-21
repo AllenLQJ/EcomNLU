@@ -187,14 +187,19 @@ $py = "C:\Users\hmc45\Miniconda3\envs\AI\python.exe"
 ### 问题 1：pandas 3.x 下正则统计出现严重误判
 
 - 现象：质量报告一度显示「纯数字或纯符号评论」为 55,799 条，占全体 89%，明显不合理。
-- 原因：环境中的 pandas 版本为 3.0.5，字符串正则被委托给 PyArrow/RE2 执行，
-  而 RE2 的 `\w` / `\W` 只识别 ASCII，导致中文全部被 `\W` 匹配。
-  同时 RE2 不支持 `\uXXXX` 转义，`r"[\u4e00-\u9fff]"` 直接抛出 `ArrowInvalid`。
+- 原因：pandas 3.0.5 的字符串列默认使用 PyArrow 后端（底层数组为 `ArrowStringArray`），
+  因此 `Series.str` 上的正则由 **PyArrow 绑定的 RE2** 执行，而不是 Python 的 `re`。
+  两者语义不同：RE2 的 Perl 字符类只按 ASCII 解释，`\w` 等价于 `[0-9A-Za-z_]`、
+  `\s` 等价于 `[\t\n\f\r ]`，所以 `\W` 会把汉字匹配为「非单词字符」，
+  使所有中文评论都被 `[0-9\s\W]+` 命中。
+  同一根因还导致 RE2 不接受 `\uXXXX` 转义，`r"[\u4e00-\u9fff]"` 直接抛出 `ArrowInvalid`。
 - 解决方案：
-  1. 中文范围改为非 raw 字符串，由 Python 先解析成真实字符再交给引擎；
+  1. 中文范围改为非 raw 字符串，由 Python 先解析成真实字符再交给 RE2；
   2. 「纯符号文本」改用「既无中文也无拉丁字母」的显式定义，不再依赖 `\W`；
-  3. 增加回归测试 `test_meaningless_metric_is_not_inflated`，防止该问题再次出现。
+  3. 增加回归测试保护该行为，防止问题再次出现。
 - 是否已解决：已解决。修正后该指标为 2 条，与人工抽样一致。
+- 备注：该指标所属的原始数据质量检查模块已按团队决定移交给组长（见问题 10），
+  上述根因说明作为共享知识保留在 `src/data/text_patterns.py` 的模块说明中。
 
 ### 问题 2：pandas 3.x 对可空 Int64 列执行 clip 抛错
 
@@ -258,8 +263,11 @@ $py = "C:\Users\hmc45\Miniconda3\envs\AI\python.exe"
 
 - 现象：排查问题 7 时发现，`DataFrame.str.replace(r"\s+", " ")` 对
   `"a\u3000b"` 与 `"a\u00a0b"`（全角空格、不换行空格）**完全无效**。
-- 原因：与问题 1 同源。pandas 3.x 把字符串正则交给 PyArrow/RE2，RE2 的 `\s`
-  只等价于 ASCII 的 `[\t\n\f\r ]`，不匹配任何 Unicode 空白字符。
+- 原因：与问题 1 同源。pandas 3.x 的字符串列默认由 PyArrow 后端承载，
+  `.str` 正则由 RE2 执行，而 RE2 的 `\s` 等价于 `[\t\n\f\r ]`，
+  仅覆盖 ASCII 空白，匹配不到全角空格（U+3000）与不换行空格（U+00A0）。
+  需要说明的是，同一列上 `.str.strip()` 走的是 Python 的 `str.strip()`（Unicode 语义），
+  因此 pandas 的字符串方法之间语义并不统一，这正是本缺陷容易被忽略的原因。
 - 影响：原始数据中 52 行含全角空格，恰好都出现在文本首尾，被 `.str.strip()`
   兜住了，所以当前结果没有出错；但一旦全角空格出现在文本中间就会漏掉，
   造成「同一文本因排版差异被当成两个样本」的隐患。

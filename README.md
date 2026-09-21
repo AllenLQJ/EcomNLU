@@ -19,8 +19,8 @@
 - [ ] M5：模型优化与情感分析扩展
 - [ ] M6：Web 部署与答辩材料
 
-M2 已产出可复现的数据闭环：原始 62,774 条 → 清洗后 62,753 条，
-按类别分层划分为 50,209 / 6,272 / 6,272，跨集合重复文本为 0。
+M2 已产出可复现的数据闭环：原始 62,774 条 → 清洗后 62,752 条，
+按类别分层划分为 50,206 / 6,274 / 6,272，跨集合重复文本为 0。
 模型训练与端到端预测尚未开始。
 
 ## 项目周期
@@ -82,18 +82,24 @@ data/raw/online_shopping_10_cats.csv
 四个脚本必须按顺序执行，每一步都拒绝跳过上游产物，从而保证流程可复现：
 
 ```powershell
-python scripts/check_data_quality.py    # 原始数据质量检查报告
 python scripts/clean_data.py            # 清洗 -> data/interim/reviews_clean.csv
-python scripts/split_data.py            # 8:1:1 分层划分 -> data/processed/{train,dev,test}.csv
+python scripts/split_data.py            # 8:1:1 分层划分 -> data/processed/
 python scripts/run_eda.py               # EDA 图表与 max_length 评审报告
 python scripts/report_environment.py    # 依赖与实际环境比对记录
 ```
+
+原始数据质量检查由 `python src/data/check_raw.py` 负责，可独立运行，不属于上述链路。
+
+`scripts/split_data.py` 除 `train/dev/test.csv` 外，还按接口契约
+（[docs/contracts.md](docs/contracts.md)）生成 `label_mapping.json` 与
+`split_manifest.json`，两者是下游训练的前置依赖。
 
 产物位置：
 
 | 产物 | 路径 |
 | --- | --- |
-| 质量检查报告 | `reports/data-quality-report.md` |
+| 数据契约产物 | `data/processed/{train,dev,test}.csv`、`label_mapping.json`、`split_manifest.json` |
+| 原始数据质量报告 | `reports/data-quality/raw_quality_report.md` |
 | 清洗报告 | `reports/data-cleaning-report.md` |
 | 划分与泄漏检查报告 | `reports/data-split-report.md` |
 | EDA 报告与图表 | `reports/eda-report.md`、`reports/figures/` |
@@ -101,6 +107,12 @@ python scripts/report_environment.py    # 依赖与实际环境比对记录
 
 数据划分使用固定随机种子 42，并以评论文本为分组单位，确保同一文本不会跨越
 训练集、验证集和测试集；划分脚本在检测到泄漏时会以非零退出码失败。
+
+契约合规可用契约分支提供的校验器验收：
+
+```powershell
+python scripts/verify_data_contract.py
+```
 
 ## 运行环境
 

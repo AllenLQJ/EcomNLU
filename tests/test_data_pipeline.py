@@ -151,9 +151,10 @@ class CleaningRuleTests(unittest.TestCase):
     def test_unicode_spaces_are_normalised(self) -> None:
         """全角空格与不换行空格也应被归一化。
 
-        回归保护：pandas 3.x 会把 ``.str.replace(r"\\s+")`` 交给 RE2 执行，
-        而 RE2 的 ``\\s`` 只识别 ASCII，因此全角空格与不换行空格不会被合并，
-        必须改用 Python 的 ``re``。
+        回归保护：pandas 3.x 的字符串列默认使用 PyArrow 后端（``ArrowStringArray``），
+        ``.str.replace(r"\\s+")`` 因此由 PyArrow 绑定的 RE2 执行，
+        而 RE2 的 ``\\s`` 等价于 ``[\\t\\n\\f\\r ]``，只覆盖 ASCII 空白，
+        匹配不到全角空格（U+3000）与不换行空格（U+00A0），必须改用 Python 的 ``re``。
         """
         result = clean([["书籍", 1, "好书\u3000推荐\u00a0很快"]])
         self.assertEqual(result.dataframe.iloc[0][TEXT], "好书 推荐 很快")

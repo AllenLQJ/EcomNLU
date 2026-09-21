@@ -50,7 +50,8 @@ REQUIREMENT_PATTERN = re.compile(
 # 之所以列出 pillow 与 wordcloud，是因为发生过一次真实事故：安装 wordcloud 时
 # conda 顺带把 Pillow 与 matplotlib 换成了别的构建版本，导致 matplotlib 保存图片
 # 时原生崩溃；而当时的检查只覆盖 requirements.txt 里的直接依赖，完全没有预警。
-# pyarrow 则是 pandas 3.x 字符串正则的实际执行引擎（RE2），直接决定正则语义。
+# pyarrow 是 pandas 3.x 字符串列的默认后端，其绑定的 RE2 是 .str 正则的实际执行引擎，
+# 正则语义（\w / \s 只按 ASCII 解释、不接受 \u 转义）由它决定，因此必须记录。
 EXTRA_PACKAGES = ("pyarrow", "pillow", "wordcloud")
 
 
@@ -221,12 +222,15 @@ def main() -> int:
             "",
             "```powershell",
             "# 使用当前已确认可用的环境运行全部数据流程",
-            "& C:\\Users\\hmc45\\Miniconda3\\envs\\AI\\python.exe scripts/check_data_quality.py",
             "& C:\\Users\\hmc45\\Miniconda3\\envs\\AI\\python.exe scripts/clean_data.py",
             "& C:\\Users\\hmc45\\Miniconda3\\envs\\AI\\python.exe scripts/split_data.py",
             "& C:\\Users\\hmc45\\Miniconda3\\envs\\AI\\python.exe scripts/run_eda.py",
+            "& C:\\Users\\hmc45\\Miniconda3\\envs\\AI\\python.exe scripts/report_environment.py",
             "& C:\\Users\\hmc45\\Miniconda3\\envs\\AI\\python.exe -m unittest discover -s tests -v",
             "```",
+            "",
+            "# 原始数据质量检查由契约分支的脚本独立承担",
+            "& C:\\Users\\hmc45\\Miniconda3\\envs\\AI\\python.exe src/data/check_raw.py",
             "",
             "> 上表路径是本机 conda 环境位置，仅用于本机复现；项目代码本身不包含任何",
             "> 个人电脑绝对路径，所有脚本均以项目根目录解析路径。",

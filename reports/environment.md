@@ -56,12 +56,15 @@
 
 ```powershell
 # 使用当前已确认可用的环境运行全部数据流程
-& C:\Users\hmc45\Miniconda3\envs\AI\python.exe scripts/check_data_quality.py
 & C:\Users\hmc45\Miniconda3\envs\AI\python.exe scripts/clean_data.py
 & C:\Users\hmc45\Miniconda3\envs\AI\python.exe scripts/split_data.py
 & C:\Users\hmc45\Miniconda3\envs\AI\python.exe scripts/run_eda.py
+& C:\Users\hmc45\Miniconda3\envs\AI\python.exe scripts/report_environment.py
 & C:\Users\hmc45\Miniconda3\envs\AI\python.exe -m unittest discover -s tests -v
 ```
+
+# 原始数据质量检查由契约分支的脚本独立承担
+& C:\Users\hmc45\Miniconda3\envs\AI\python.exe src/data/check_raw.py
 
 > 上表路径是本机 conda 环境位置，仅用于本机复现；项目代码本身不包含任何
 > 个人电脑绝对路径，所有脚本均以项目根目录解析路径。

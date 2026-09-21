@@ -143,8 +143,7 @@ def main() -> int:
     for required in (raw_path, clean_path, cleaning_stats_path):
         if not required.is_file():
             raise FileNotFoundError(
-                f"Missing input: {required}. Run check_data_quality.py, clean_data.py "
-                "and split_data.py first."
+                f"缺少输入文件：{required}。请先依次运行 clean_data.py 与 split_data.py。"
             )
 
     font_name = setup_chinese_font()

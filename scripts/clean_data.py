@@ -17,7 +17,8 @@ Usage:
     - JSON 步骤统计：默认 reports/data-cleaning-stats.json，可用 --stats-json 覆盖。
 
 前置依赖：
-    - 无强制前置脚本，但建议先运行 check_data_quality.py 了解原始数据的质量问题。
+    - 无强制前置脚本。如需先了解原始数据的质量问题，可运行 `python src/data/check_raw.py`
+      （原始数据质量检查由该脚本承担，不属于本流水线链路）。
     - 本脚本的输出是 split_data.py 的必需输入，划分数据集前必须先运行本脚本。
 """
 

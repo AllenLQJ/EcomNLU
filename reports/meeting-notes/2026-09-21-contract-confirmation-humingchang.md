@@ -174,7 +174,7 @@
 | 编号 | 事项 | 负责人 | 说明 |
 | ---: | --- | --- | --- |
 | 待办 1 | `requirements.txt` 增加 `wordcloud>=1.9,<2.0`（以及传递依赖 `pillow`） | LanQvJian | 词云已成为 EDA 的实际依赖；该文件由 LanQvJian 维护，数据方未擅自改动 |
-| 待办 2 | `src/data/check_raw.py` 第 270 行的归一化改用 Python 的 `re` | LanQvJian | 该行 `str.replace(r"\s+", " ", regex=True)` 走 RE2，其 `\s` 只识别 ASCII，**无法合并全角空格（U+3000）与不换行空格（U+00A0）**；实测 52 行的归一化结果与 Unicode 口径不同。当前重复统计数字恰好未受影响（两种口径均为 96 行/46 组），属**潜伏缺陷**，一旦全角空格出现在会构成重复对的位置即会静默少报 |
+| 待办 2 | `src/data/check_raw.py` 第 270 行的归一化改用 Python 的 `re` | LanQvJian | 该行 `str.replace(r"\s+", " ", regex=True)` 的根因是 pandas 3.x 的字符串列默认使用 PyArrow 后端（`ArrowStringArray`），`.str` 正则由 PyArrow 绑定的 RE2 执行，而 RE2 的 `\s` 等价于 `[\t\n\f\r ]`，仅覆盖 ASCII 空白，**匹配不到全角空格（U+3000）与不换行空格（U+00A0）**；实测 52 行的归一化结果与 Unicode 口径不同。当前重复统计数字恰好未受影响（两种口径均为 96 行/46 组），属**潜伏缺陷**，一旦全角空格出现在会构成重复对的位置即会静默少报 |
 | 待办 3 | 修正数据质量报告中「冲突重复组：45（涉及 94 行）」的表述 | LanQvJian | 建议改为按第二节的三类拆分表述。原文「既无法直接用于训练」会使 28 组跨类别有效配对（60 行）被误删 |
 | 待办 4 | 确认 `data/processed/` 下两个 JSON 是否仍需被 `.gitignore` 排除 | LanQvJian | 契约要求下游训练前必须存在这两个文件，当前需先运行 `scripts/split_data.py` 生成；若希望全新克隆即可训练，需调整忽略规则 |
 

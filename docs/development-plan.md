@@ -37,21 +37,23 @@
 
 ### M2 待验收（2026-09-21 上午完成）
 
-- [x] 编写原始数据质量检查脚本 → `scripts/check_data_quality.py`、`reports/data-quality-report.md`
+- [x] 原始数据质量检查 → 由 `python src/data/check_raw.py` 承担，报告见 `reports/data-quality/raw_quality_report.md`
 - [x] 明确缺失、重复、超短和超长文本处理规则 → `reports/data-cleaning-report.md` 第 3 节
-- [x] 清洗文本并生成清洗报告 → 62,774 → 62,753 条，删除 21 条（0.0335%）
-- [x] 以类别分层完成 8:1:1 划分 → 50,209 / 6,272 / 6,272，种子 42
+- [x] 清洗文本并生成清洗报告 → 62,774 → 62,752 条，删除 22 条（0.0350%）
+- [x] 以类别分层完成 8:1:1 划分 → 50,206 / 6,274 / 6,272，种子 42
 - [x] 检查评论文本是否跨集合重复 → train/dev/test 两两重复文本数均为 0
-- [x] 生成类别、情感和文本长度可视化 → `reports/eda-report.md` + `reports/figures/` 共 6 张图
+- [x] 生成类别、情感和文本长度可视化 → `reports/eda-report.md` + `reports/figures/` 共 8 张图
 - [x] 评审 BERT 候选 `max_length` → 推荐 `128`，高覆盖备选 `256`，否定原项目的 `32`
+- [x] 满足接口契约第一节「数据契约」→ 产出 `label_mapping.json` 与 `split_manifest.json`；
+      组长的 `scripts/verify_data_contract.py` 校验 **19 项通过、0 项失败、0 项跳过**
 
 证据与复现命令见 `reports/daily-reports/2026-09-21-HuMingChang.md`。
-自动化检查：`python -m unittest discover -s tests -v` → 25 项测试全部通过。
+自动化检查：`python -m unittest discover -s tests -v` → 45 项测试全部通过。
 
 待非作者成员复核（满足计划中「待验收」条件）：
 
 - [ ] LanQvJian 复核数据流程可复现性，并用相同命令重跑一次核对数字
-- [ ] LanQvJian / HongSenYuan 目视检查 `reports/figures/` 六张图的排版与可读性
+- [ ] LanQvJian / HongSenYuan 目视检查 `reports/figures/` 八张图的排版与可读性
 - [ ] 确认 `requirements.txt` 的 `pandas<3.0` 约束与实际 3.0.5 的取舍（见 `reports/environment.md`）
 
 ### M3 下一步
