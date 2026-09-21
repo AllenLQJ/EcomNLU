@@ -22,6 +22,8 @@
 
 ## 当前待办
 
+> 状态更新时间：2026-09-21。M4 已完成最终验收并合入 `main`；当前进入 M5 并行开发阶段。
+
 ### M1 已完成
 
 - [x] 创建标准目录
@@ -78,12 +80,12 @@
 证据见 `reports/daily-reports/2026-09-21-HuMingChang.md` 的 M3 部分与
 `reports/m3-baseline-results.json`。
 
-后续与 M4/M6 联调时复核：
+M4/M6 联调复核结果：
 
-- [ ] LanQvJian 用 `python scripts/verify_model_contract.py` 复核三个模型的契约合规
-- [ ] HongSenYuan 确认 M4 与本报告使用**同一份测试集**（数据集指纹见报告第 1 节，
+- [x] LanQvJian 用 `python scripts/verify_model_contract.py` 复核三个模型的契约合规（三个模型各 15 项通过）
+- [x] HongSenYuan 确认 M4 与本报告使用**同一份测试集**（数据集指纹见报告第 1 节，
       按契约 §2.3 v1.0.1 由三个划分 CSV 的内容哈希算出，不受 `created_at` 影响）
-- [ ] 确认 `models/tfidf_svm/`（105.98 MB）作为 M6 演示候选模型的可行性
+- [x] 完成 M6 候选评估：`tfidf_svm` 可作为本地备用模型；主部署模型最终选定 `bert_base_chinese`
 
 ### M4 已完成（2026-09-21 最终验收通过）
 
@@ -91,7 +93,7 @@
 - [x] HuMingChang 技术复核：相同数据集指纹、相同标签顺序、相同评估口径、验证集选模且测试集未参与调参
 - [x] HuMingChang 复核 FastText/BERT 的 `metrics.json`，并与 `tfidf_svm` 在同一测试集上对比
 - [x] LanQvJian 最终检验：模型契约、磁盘重载、单条/批量真实推理、大小、延迟及 M6 部署可行性
-- [x] 修复全部阻断项并完成复验；验收修复分支已就绪，待按合并流程合入 `main`
+- [x] 修复全部阻断项并完成复验；`fix/m4-final-acceptance` 已合入并推送至 `main`（提交 `01a8fba`）
 
 复核与最终验收记录见 `reports/m4-review.md`。
 
