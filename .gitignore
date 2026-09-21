@@ -20,6 +20,9 @@ env/
 .DS_Store
 Thumbs.db
 
+# AI 助手工作区（本地记忆与技能，不进入版本库）
+.workbuddy/
+
 # 密钥和本地配置
 .env
 .env.*
