@@ -14,7 +14,7 @@
 
 1. **情感模型的 ``label_mapping.json`` 就是情感映射本身。**
    ``categories`` 为 ``["负向", "正向"]``，取值来源是 ``configs/base.yaml`` 的
-   ``task.sentiment_categories``。这是契约 v1.2 草案 §2.2 的规定：
+   ``task.sentiment_categories``。这是契约 v1.2 §2.1 的规定：
    §2.1 现行那句「必须与 ``data/processed/label_mapping.json`` 逐字节相同」
    只能适用于主任务——情感模型的标签集与 10 个商品类**必然不同**，
    套用该句会让任何情感模型在校验第一步就失败（草案「更正二」已说明这一点）。

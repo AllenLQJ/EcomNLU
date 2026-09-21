@@ -103,12 +103,15 @@ M4/M6 联调复核结果：
 
 #### HuMingChang：情感二分类基线
 
-- [ ] 在 `feature/sentiment-baseline` 开发，使用现有 `label` 字段，不重复制作标签
-- [ ] 完成 TF-IDF + 逻辑回归；时间允许时增加校准 LinearSVC
-- [ ] 按验证集 Macro-F1 选模，测试集只用于最终评估
-- [ ] 报告 Accuracy、Macro Precision、Macro Recall、Macro-F1、混淆矩阵，以及各商品类别内的情感表现
-- [ ] 保存模型、向量器、标签映射和元数据，通过统一推理接口返回正负情感及置信度
-- [ ] 记录否定句、反讽、评价对象不明确等典型错误
+- [x] 在 `feature/sentiment-baseline` 开发，使用现有 `label` 字段，不重复制作标签
+- [x] 完成 TF-IDF + 逻辑回归及校准 LinearSVC
+- [x] 按验证集 Macro-F1 选模，测试集只用于最终评估
+- [x] 报告 Accuracy、Macro Precision、Macro Recall、Macro-F1、混淆矩阵，以及各商品类别内的情感表现
+- [x] 保存模型、向量器、标签映射和元数据，通过统一推理接口返回正负情感及置信度
+- [x] 记录否定句、反讽、评价对象不明确等典型错误
+
+验收复现：Conda `py310` 完整训练成功，`sentiment_tfidf_svm` 的 dev/test Macro-F1
+分别为 0.933517 / 0.936208；两个情感模型各通过 15 项模型契约检查，统一入口正负样本预测通过。
 
 #### HongSenYuan：BERT 优化
 

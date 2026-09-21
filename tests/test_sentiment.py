@@ -19,7 +19,7 @@ Usage:
        测试用已知极性的文本断言方向正确，而不是只断言「跑通了」；
     3. **标签顺序的唯一定义处是 ``configs/base.yaml``。**
        ``scripts/verify_model_contract.py`` 与训练脚本都从那里读，
-       测试断言配置的取值与顺序，任何漂移都会立刻变红（契约 v1.2 草案 §2.6）。
+       测试断言配置的取值与顺序，任何漂移都会立刻变红（契约 v1.2 §2.1）。
 """
 
 from __future__ import annotations
@@ -332,7 +332,7 @@ class SentimentArtifactTests(unittest.TestCase):
     def test_label_mapping_is_sentiment_space(self) -> None:
         """情感模型的 label_mapping.json 必须是情感标签，不得复制商品映射。
 
-        契约 v1.2 草案 §2.2：情感任务的标签集与 10 个商品类必然不同，
+        契约 v1.2 §2.1：情感任务的标签集与 10 个商品类必然不同，
         套用「与数据契约逐字节相同」会让任何情感模型在校验第一步就失败。
         """
         with tempfile.TemporaryDirectory() as temporary:
@@ -406,7 +406,7 @@ class SentimentArtifactTests(unittest.TestCase):
     def test_unified_entry_returns_sentiment_and_confidence(self) -> None:
         """统一入口必须返回正负情感及置信度，且概率和为 1。
 
-        这是契约 v1.2 草案 §2.5 的关键点：**不新增 SentimentPredictor 协议**，
+        这是契约 v1.2 §2.5 的关键点：**不新增 SentimentPredictor 协议**，
         情感模型与类别模型共用 ``load_predictor``，标签集由模型目录自己决定。
         """
         with tempfile.TemporaryDirectory() as temporary:

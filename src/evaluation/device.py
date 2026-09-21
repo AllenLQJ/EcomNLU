@@ -144,9 +144,9 @@ def render_environment_note() -> str:
             f"（显存 {info['gpu_total_memory_gb']} GB，当前可用 "
             f"{info['gpu_free_memory_gb']} GB{capability}），"
             f"torch 版本 {info['torch_version']}。"
-            "但本报告涉及的三个模型均为 scikit-learn 实现，**该库没有 GPU 后端**，"
+            "但本报告涉及的 scikit-learn 模型**没有 GPU 后端**，"
             "因此 `metadata.device` 按实际情况记为 `cpu`；"
-            "CUDA 将用于 M4 的 FastText 与 BERT（PyTorch）阶段。"
+            "CUDA 设备可供已完成的 M4 BERT 训练及后续深度学习实验使用。"
         )
     return (
         "本机未检测到可用的 CUDA 设备，M3 与 M4 均在 CPU 上运行，"

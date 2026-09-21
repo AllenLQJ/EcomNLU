@@ -12,7 +12,7 @@
   ``data/processed/label_mapping.json`` **逐字节相同**；
 - ``sentiment_classification``（M5）：2 个情感类。``label_mapping.json`` 的
   ``categories`` 必须与 ``configs/base.yaml`` 的 ``task.sentiment_categories`` 一致
-  （契约 v1.2 草案 §2.2）。
+  （契约 v1.2 §2.1）。
 
 两类的**统一推理入口都是** ``load_predictor``——适配器是任务无关的，
 标签集取自模型目录自己的 ``label_mapping.json``（草案 §2.5）。
@@ -59,7 +59,7 @@ METADATA_REQUIRED_KEYS = (
 )
 ALLOWED_TASKS = ("category_classification", "sentiment_classification")
 
-# 情感任务的标签顺序来源（契约 v1.2 草案 §2.2 / §2.6）：
+# 情感任务的标签顺序来源（契约 v1.2 §2.1）：
 # configs/base.yaml 的 task.sentiment_categories。刻意不在本脚本里硬编码，
 # 也不在模块顶层 import src.inference——脚本要能在 src 包导入失败时仍给出结构类结论。
 CONFIG_PATH = PROJECT_ROOT / "configs" / "base.yaml"
@@ -253,7 +253,7 @@ class ModelContractValidator:
         metrics = self.load_json("metrics.json")
 
         self.task = (metadata or {}).get("task")
-        # 标签集统一取自模型目录自己的 label_mapping.json（契约 v1.2 草案 §2.5）。
+        # 标签集统一取自模型目录自己的 label_mapping.json（契约 v1.2 §2.5）。
         # 主任务那份是 10 个商品类，情感任务那份是 2 个情感类，规则完全相同。
         self.expected_categories = (self.label_mapping or {}).get("categories") or None
 
@@ -271,7 +271,7 @@ class ModelContractValidator:
     def load_sentiment_categories(self) -> list[str] | None:
         """从 ``configs/base.yaml`` 读取情感标签顺序。
 
-        契约 v1.2 草案 §2.2 / §2.6 把情感标签顺序的来源固定为配置项
+        契约 v1.2 §2.1 把情感标签顺序的来源固定为配置项
         ``task.sentiment_categories``：标签顺序是契约的一部分，必须集中管理、
         能被校验器与 Web 层同时读取，不能散落在代码里。
 
@@ -301,7 +301,7 @@ class ModelContractValidator:
     def check_label_mapping(self) -> None:
         """按任务校验 ``label_mapping.json``。
 
-        契约 v1.2 草案 §2.2 把现行单条规则按任务分列：
+        契约 v1.2 §2.1 把现行单条规则按任务分列：
 
         - 主任务：与 ``data/processed/label_mapping.json`` **逐字节相同**（直接复制）；
         - 情感任务：``categories`` 必须等于 ``configs/base.yaml`` 的
@@ -503,7 +503,7 @@ class ModelContractValidator:
             )
             return
 
-        # 统一入口对两类任务是同一个（契约 v1.2 草案 §2.5）：
+        # 统一入口对两类任务是同一个（契约 v1.2 §2.5）：
         # 适配器是任务无关的，标签集取自模型目录自己的 label_mapping.json。
         entry_name = "load_predictor"
         load_predictor = getattr(inference_module, entry_name, None)

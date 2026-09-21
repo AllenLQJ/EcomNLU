@@ -263,6 +263,11 @@ class DataContractValidator:
                 ]
                 if missing_rules:
                     problems.append(f"cleaning.rules 缺少或留空：{missing_rules}")
+                if rules.get("duplicate_review") != "drop_within_category_only":
+                    problems.append(
+                        "cleaning.rules.duplicate_review 必须为 "
+                        "'drop_within_category_only'"
+                    )
 
         split = manifest.get("split")
         expected_ratios = {
@@ -279,8 +284,8 @@ class DataContractValidator:
                 problems.append(
                     f"split.ratios 应为 {expected_ratios}，实际为 {split.get('ratios')!r}"
                 )
-            if split.get("dedup_key") not in {"raw_text", "normalized_text"}:
-                problems.append("split.dedup_key 只能是 raw_text 或 normalized_text")
+            if split.get("dedup_key") != "normalized_text":
+                problems.append("split.dedup_key 必须为 'normalized_text'")
 
         leakage = manifest.get("leakage_check")
         if not isinstance(leakage, dict) or leakage.get("based_on") != "normalized_text":
