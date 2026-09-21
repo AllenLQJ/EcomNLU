@@ -8,8 +8,12 @@ Usage:
 输入文件：
     - ``data/processed/{train,dev,test}.csv``（数据契约产物，需先运行 split_data.py）
     - ``data/processed/label_mapping.json``
-    - ``data/processed/split_manifest.json``（记入模型元数据，作为数据版本指纹）
+    - ``data/processed/split_manifest.json``（数据契约产物；**不用于指纹计算**）
     - ``configs/base.yaml``
+
+    模型元数据中的 ``dataset_fingerprint`` 按契约 §2.3 由 ``train/dev/test`` 三个 CSV
+    的内容哈希算出，刻意不使用 ``split_manifest.json`` 的整体哈希——该文件含
+    ``created_at``，会让同一份数据产生不同指纹（v1.0 的缺陷，v1.0.1 已勘误）。
 
 输出文件：
     - ``models/tfidf_logreg/``、``models/tfidf_svm/``、``models/tfidf_rf/``
@@ -66,7 +70,7 @@ from src.features.text_features import (  # noqa: E402
 from src.models.baseline.artifacts import (  # noqa: E402
     build_metadata,
     build_metrics,
-    sha256_of,
+    dataset_fingerprint,
     write_metrics_file,
     write_model_body,
 )
@@ -367,7 +371,7 @@ def main() -> int:
                 model_name=name,
                 created_at=beijing_timestamp(),
                 random_seed=seed,
-                split_manifest_path=manifest_path,
+                processed_dir=processed_dir,
                 train_rows=len(frames["train"]),
                 hyperparameters={
                     **candidate.hyperparameters,
@@ -490,8 +494,10 @@ def main() -> int:
             "dev_rows": len(frames["dev"]),
             "test_rows": len(frames["test"]),
             "random_seed": seed,
-            # 测试集指纹直接取自磁盘上的清单文件，作为「所有模型共用同一份数据」的证据
-            "split_manifest_sha256": sha256_of(manifest_path),
+            # 数据集指纹由三个划分 CSV 的内容算出（契约 §2.3），作为
+            # 「所有模型共用同一份数据」的证据；不用 split_manifest.json 的哈希，
+            # 因为该文件含 created_at，会让同一份数据产生不同指纹。
+            "dataset_fingerprint": dataset_fingerprint(processed_dir),
         },
         vectorizer_config=signature,
         ablation_results=ablation_results,

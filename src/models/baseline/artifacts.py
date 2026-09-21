@@ -17,9 +17,13 @@
    :func:`src.features.text_features.copy_label_mapping` 的字节复制。
    重新序列化会因键序或缩进差异产生不同的文件，而混淆矩阵的类别顺序依赖它。
 
-2. **``split_manifest_sha256`` 必须是当前清单的真实哈希。**
-   契约 §2.3 称它是「所有模型使用同一份无泄漏测试集的唯一硬证据」。
-   这里在写出时从磁盘实时计算，避免把过期指纹写进产物。
+2. **``dataset_fingerprint`` 必须由三个划分 CSV 的内容算出。**
+   契约 §2.3（v1.0.1）称它是「所有模型使用同一份无泄漏测试集的唯一硬证据」。
+   算法固定为 `train` → `dev` → `test` 顺序取三个 CSV 的 SHA-256，
+   用半角冒号连接后再取一次 SHA-256，见 :func:`dataset_fingerprint`。
+   **刻意不使用 ``split_manifest.json`` 的整体哈希**：该文件含 ``created_at``，
+   每次重新生成数据都会变化，会让同一份数据产生不同指纹，
+   模型被误判为「基于旧数据训练」。这是 v1.0 的缺陷，v1.0.1 已勘误，不得回退。
 
 3. **``max_length`` 对非 transformers 模型必须为 ``null``。**
    契约 §2.3 规定该字段仅 BERT 类模型填实际值；校验器会检查这一点。
@@ -43,6 +47,9 @@ from src.features.text_features import copy_label_mapping, save_vectorizer
 
 
 # metadata.json 的必需字段，与 scripts/verify_model_contract.py 保持一致。
+# 注意：v1.0.1 勘误后，原先的 ``split_manifest_sha256`` 已被 ``dataset_fingerprint`` 取代
+# （见 docs/contracts.md §2.3 与
+# reports/meeting-notes/2026-09-21-contract-change-v1.0.1-fingerprint.md）。
 METADATA_REQUIRED_KEYS: tuple[str, ...] = (
     "model_name",
     "task",
@@ -50,12 +57,15 @@ METADATA_REQUIRED_KEYS: tuple[str, ...] = (
     "framework_version",
     "created_at",
     "random_seed",
-    "split_manifest_sha256",
+    "dataset_fingerprint",
     "train_rows",
     "hyperparameters",
     "max_length",
     "device",
 )
+
+# 计算数据集指纹时固定的划分顺序，契约 §2.3 规定该顺序不得调换。
+FINGERPRINT_SPLIT_ORDER: tuple[str, ...] = ("train", "dev", "test")
 
 
 def sha256_of(path: Path) -> str:
@@ -74,12 +84,43 @@ def sha256_of(path: Path) -> str:
     return digest.hexdigest()
 
 
+def dataset_fingerprint(processed_dir: Path) -> str:
+    """按契约 §2.3 计算数据集指纹。
+
+    算法固定：先分别取 ``train.csv``、``dev.csv``、``test.csv`` 的 SHA-256（小写十六进制），
+    按 ``train:dev:test`` 用半角冒号连接，再对该字符串取 SHA-256。
+
+    该指纹**刻意只由三个 CSV 的内容决定**，不使用 ``split_manifest.json`` 的整体哈希。
+    原因：清单里含 ``created_at``，每次重新生成数据都会变化；即使三个 CSV 字节完全一致，
+    清单哈希仍会漂移，模型会被误判为「基于旧数据训练」。这是 v1.0 的缺陷，
+    v1.0.1 已勘误，**不得回退**。
+
+    参数：
+        processed_dir：``data/processed`` 目录。
+
+    返回：
+        64 位小写十六进制指纹。
+
+    异常：
+        FileNotFoundError：任一划分文件缺失时抛出，避免产出含义不明的指纹。
+    """
+    digests: list[str] = []
+    for split in FINGERPRINT_SPLIT_ORDER:
+        path = Path(processed_dir) / f"{split}.csv"
+        if not path.is_file():
+            raise FileNotFoundError(
+                f"计算数据集指纹需要 {path}，请先运行 'python scripts/split_data.py'。"
+            )
+        digests.append(sha256_of(path))
+    return hashlib.sha256(":".join(digests).encode("utf-8")).hexdigest()
+
+
 def build_metadata(
     *,
     model_name: str,
     created_at: str,
     random_seed: int,
-    split_manifest_path: Path,
+    processed_dir: Path,
     train_rows: int,
     hyperparameters: Mapping[str, Any],
     device: str = "cpu",
@@ -91,7 +132,9 @@ def build_metadata(
         model_name：模型名，须为契约允许的取值。
         created_at：带时区的 ISO 8601 创建时间。
         random_seed：训练使用的随机种子。
-        split_manifest_path：``data/processed/split_manifest.json``，用于实时计算指纹。
+        processed_dir：``data/processed`` 目录，用于实时计算数据集指纹（契约 §2.3）。
+            注意这里传入的是**目录**而不是 ``split_manifest.json``：v1.0.1 勘误后指纹
+            由三个 CSV 的内容决定，不再使用含 ``created_at`` 的清单文件哈希。
         train_rows：实际参与训练的行数（不含验证集与测试集）。
         hyperparameters：完整到可复现训练的超参数。
         device：实际训练设备。
@@ -101,12 +144,8 @@ def build_metadata(
         可直接序列化的元数据字典。
 
     异常：
-        FileNotFoundError：划分清单不存在时抛出——此时无法证明数据版本，不应产出模型。
+        FileNotFoundError：三个划分文件不齐时抛出——此时无法证明数据版本，不应产出模型。
     """
-    if not split_manifest_path.is_file():
-        raise FileNotFoundError(
-            f"缺少划分清单 {split_manifest_path}，无法记录数据指纹；请先运行 scripts/split_data.py"
-        )
     return {
         "model_name": str(model_name),
         "task": "category_classification",
@@ -114,7 +153,7 @@ def build_metadata(
         "framework_version": sklearn.__version__,
         "created_at": created_at,
         "random_seed": int(random_seed),
-        "split_manifest_sha256": sha256_of(split_manifest_path),
+        "dataset_fingerprint": dataset_fingerprint(processed_dir),
         "train_rows": int(train_rows),
         # 契约 §2.3：max_length 仅 BERT 类模型填实际值，其余必须为 null
         "max_length": None,

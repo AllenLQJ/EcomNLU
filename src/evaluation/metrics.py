@@ -296,7 +296,9 @@ def render_comparison_report(
         f"- 类别顺序：{'、'.join(categories)}（取自 `label_mapping.json`，固定不变）",
         f"- **选模依据：验证集 {selection_metric}**，不使用测试集做任何选择或调参",
         f"- 训练集划分随机种子：{dataset_summary['random_seed']}",
-        f"- 测试集指纹：`{dataset_summary['split_manifest_sha256'][:16]}…`（所有模型共用同一份）",
+        f"- 数据集指纹：`{dataset_summary['dataset_fingerprint'][:16]}…`"
+        "（所有模型共用同一份；按契约 §2.3 由 train/dev/test 三个 CSV 的内容哈希算出，"
+        "不受 `created_at` 影响）",
         "",
         "## 2. 特征配置",
         "",

@@ -16,7 +16,7 @@ Usage:
 关键设计理由：
     1. **单元测试用极小样本、永远可运行**：不需要先跑完整训练（那要几十分钟），
        提交前即可快速自检；
-    2. **集成测试独立重算而不是相信产物自述**：``split_manifest_sha256``、
+    2. **集成测试独立重算而不是相信产物自述**：``dataset_fingerprint``、
        ``label_mapping.json`` 的字节一致性都由测试自己从磁盘重新计算后比对；
     3. 期望值来自契约 ``docs/contracts.md`` §2，一旦契约变更这些测试会失败，
        提醒同步更新实现。
@@ -24,6 +24,7 @@ Usage:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 import tempfile
@@ -64,6 +65,7 @@ from src.models.baseline.artifacts import (  # noqa: E402
     METADATA_REQUIRED_KEYS,
     build_metadata,
     build_metrics,
+    dataset_fingerprint,
     sha256_of,
     write_metrics_file,
     write_model_body,
@@ -384,6 +386,13 @@ class ArtifactTests(unittest.TestCase):
         self.manifest_path = self.processed / "split_manifest.json"
         self.manifest_path.write_text('{"random_seed": 42}', encoding="utf-8")
 
+        # 契约 v1.0.1 起，数据指纹由 train/dev/test 三个 CSV 的内容算出，
+        # 因此夹具必须真的造出这三个文件，否则 build_metadata 会因缺文件而报错。
+        for split in ("train", "dev", "test"):
+            (self.processed / f"{split}.csv").write_text(
+                "sample_id,review,cat,label\n0,很好,手机,1\n", encoding="utf-8"
+            )
+
         self.vectorizer = build_tfidf_vectorizer(min_df=1)
         self.vectorizer, matrix, _ = vectorize(self.vectorizer, SMALL_TEXTS)
         self.model = LogisticRegression(max_iter=500).fit(matrix, SMALL_CATEGORIES)
@@ -398,7 +407,7 @@ class ArtifactTests(unittest.TestCase):
             model_name=model_name,
             created_at="2026-09-21T12:00:00+08:00",
             random_seed=42,
-            split_manifest_path=self.manifest_path,
+            processed_dir=self.processed,
             train_rows=6,
             hyperparameters={"C": 1.0},
         )
@@ -438,11 +447,64 @@ class ArtifactTests(unittest.TestCase):
         self.assertEqual(metadata["framework"], "scikit-learn")
         self.assertEqual(metadata["task"], "category_classification")
 
-    def test_split_manifest_sha256_matches_current_manifest(self) -> None:
-        """数据指纹必须是当前清单的真实哈希。"""
+    def test_dataset_fingerprint_matches_the_contract_algorithm(self) -> None:
+        """数据指纹必须等于契约 §2.3 规定的算法结果。
+
+        契约 v1.0.1 起使用 ``dataset_fingerprint``（三个 CSV 的内容哈希），
+        取代了 v1.0 的 ``split_manifest_sha256``（清单文件整体哈希）。
+        """
         model_dir = self._write()
         metadata = json.loads((model_dir / "metadata.json").read_text(encoding="utf-8"))
-        self.assertEqual(metadata["split_manifest_sha256"], sha256_of(self.manifest_path))
+        self.assertIn("dataset_fingerprint", metadata)
+        self.assertNotIn("split_manifest_sha256", metadata)
+        self.assertEqual(
+            metadata["dataset_fingerprint"], dataset_fingerprint(self.processed)
+        )
+
+    def test_dataset_fingerprint_ignores_manifest_created_at(self) -> None:
+        """回归保护：改掉清单的 ``created_at`` 不得改变数据集指纹。
+
+        这是契约 v1.0.1 勘误的**核心原因**：v1.0 的指纹取自 ``split_manifest.json``
+        整体，而该文件含 ``created_at``，重新生成数据就会让指纹漂移，
+        即使三个 CSV 字节完全一致，模型仍会被判为「基于旧数据训练」。
+        新指纹只由 CSV 内容决定，因此必须对清单的任何变化免疫。
+        """
+        before = dataset_fingerprint(self.processed)
+
+        original = self.manifest_path.read_text(encoding="utf-8")
+        payload = json.loads(original)
+        payload["created_at"] = "2099-12-31T23:59:59+08:00"
+        self.manifest_path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        try:
+            after = dataset_fingerprint(self.processed)
+            self.assertEqual(before, after, "清单的 created_at 不应影响数据集指纹")
+            # 同时确认旧做法确实会漂移，说明这个回归测试有意义
+            self.assertNotEqual(
+                sha256_of(self.manifest_path),
+                hashlib.sha256(original.encode("utf-8")).hexdigest(),
+                "清单哈希本应随 created_at 变化，否则此测试无法体现 v1.0 的缺陷",
+            )
+        finally:
+            self.manifest_path.write_text(original, encoding="utf-8")
+
+    def test_dataset_fingerprint_survives_data_regeneration(self) -> None:
+        """回归保护：重新生成同一份数据后指纹必须保持不变。
+
+        划分由固定种子保证确定性，因此重跑 ``split_data.py`` 产出的三个 CSV
+        应当逐字节相同；指纹由 CSV 内容决定，因此也必须相同。
+        """
+        first = dataset_fingerprint(self.processed)
+        second = dataset_fingerprint(self.processed)
+        self.assertEqual(first, second)
+
+    def test_dataset_fingerprint_requires_all_three_splits(self) -> None:
+        """缺少任一划分文件时必须报错，而不是产出含义不明的指纹。"""
+        with tempfile.TemporaryDirectory() as directory:
+            empty = Path(directory)
+            with self.assertRaises(FileNotFoundError):
+                dataset_fingerprint(empty)
 
     def test_label_mapping_is_byte_identical(self) -> None:
         """模型目录下的 label_mapping.json 必须与数据契约那份逐字节相同。"""
@@ -641,16 +703,23 @@ class TrainedModelArtifactTests(unittest.TestCase):
 
     def test_metadata_records_the_current_split_manifest(self) -> None:
         """数据指纹必须与当前清单一致，否则模型是在旧数据上训练的。"""
-        manifest = self.processed_dir / "split_manifest.json"
-        if not manifest.is_file():
-            self.skipTest("split_manifest.json 不存在")
-        actual = sha256_of(manifest)
+    def test_metadata_records_the_current_dataset_fingerprint(self) -> None:
+        """数据指纹必须与当前划分数据一致，否则模型是用别的数据训练的。
+
+        校验方式与 ``scripts/verify_model_contract.py`` 相同：**从 CSV 重新计算**，
+        不读取 ``split_manifest.json``（契约 v1.0.1）。
+        """
+        try:
+            actual = dataset_fingerprint(self.processed_dir)
+        except FileNotFoundError:
+            self.skipTest("data/processed 下的划分文件不齐")
         for model_dir in self.model_dirs:
             metadata = json.loads(
                 (model_dir / "metadata.json").read_text(encoding="utf-8")
             )
             with self.subTest(model=model_dir.name):
-                self.assertEqual(metadata["split_manifest_sha256"], actual)
+                self.assertNotIn("split_manifest_sha256", metadata)
+                self.assertEqual(metadata["dataset_fingerprint"], actual)
 
     def test_metadata_marks_non_transformer_max_length_null(self) -> None:
         """非 transformers 模型的 max_length 必须为 null。"""
