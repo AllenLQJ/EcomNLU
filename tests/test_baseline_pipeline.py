@@ -677,6 +677,27 @@ class TrainedModelArtifactTests(unittest.TestCase):
         if not self.model_dirs:
             self.skipTest("models/ 下没有已训练的模型（含 metadata.json 的子目录）")
 
+    @property
+    def category_model_dirs(self) -> list[Path]:
+        """只保留商品类别模型（``metadata.task == "category_classification"``）。
+
+        契约 §2.1 允许两类任务并存：商品类别（10 类）与情感（M5 的 2 类）。本类中
+        「标签映射与数据契约逐字节相同」「指标覆盖 10 个类别」「统一入口输出 10 个
+        标签」这三项断言只对商品类别模型成立——情感模型的标签空间是
+        ``["负向", "正向"]``，由 ``tests/test_sentiment.py`` 单独覆盖。
+        因此这里按 ``task`` 显式过滤，而不是放宽成「至少一个标签」这类空断言。
+        """
+        result: list[Path] = []
+        for model_dir in self.model_dirs:
+            metadata = json.loads(
+                (model_dir / "metadata.json").read_text(encoding="utf-8")
+            )
+            if metadata.get("task") == "category_classification":
+                result.append(model_dir)
+        if not result:
+            self.skipTest("models/ 下没有商品类别模型（category_classification）")
+        return result
+
     def test_every_model_has_the_four_piece_artifact(self) -> None:
         """每个模型目录必须含契约 §2.1 的四件套与模型本体。
 
@@ -706,7 +727,7 @@ class TrainedModelArtifactTests(unittest.TestCase):
         source = self.processed_dir / "label_mapping.json"
         if not source.is_file():
             self.skipTest("数据契约的 label_mapping.json 不存在")
-        for model_dir in self.model_dirs:
+        for model_dir in self.category_model_dirs:
             with self.subTest(model=model_dir.name):
                 self.assertEqual(
                     (model_dir / "label_mapping.json").read_bytes(), source.read_bytes()
@@ -743,7 +764,7 @@ class TrainedModelArtifactTests(unittest.TestCase):
 
     def test_metrics_cover_all_categories_in_order(self) -> None:
         """dev 指标块必须覆盖全部类别，且顺序与 categories 一致。"""
-        for model_dir in self.model_dirs:
+        for model_dir in self.category_model_dirs:
             metrics = json.loads((model_dir / "metrics.json").read_text(encoding="utf-8"))
             with self.subTest(model=model_dir.name):
                 self.assertEqual(metrics["categories"], self.categories)
@@ -781,7 +802,7 @@ class TrainedModelArtifactTests(unittest.TestCase):
         from src.inference import load_predictor
 
         probe = ["手机很好用，电池耐用", "这本书内容不错，值得一读"]
-        for model_dir in self.model_dirs:
+        for model_dir in self.category_model_dirs:
             with self.subTest(model=model_dir.name):
                 predictor = load_predictor(model_dir)
                 probabilities = predictor.predict_proba(probe)

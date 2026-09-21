@@ -1,0 +1,939 @@
+{
+  "quick_mode": false,
+  "task": "sentiment_classification",
+  "selected_model": "sentiment_tfidf_svm",
+  "selection_metric": "macro_f1",
+  "labels": [
+    "负向",
+    "正向"
+  ],
+  "dataset_fingerprint": "c9b76e66e05c96ddde4923ffb3c5e39ae4ec074f1bbba6ee929a40e0681c95d5",
+  "fingerprint_matches_m3": true,
+  "positive_rate": {
+    "train": 0.505637,
+    "dev": 0.505419,
+    "test": 0.505261
+  },
+  "vectorizer": {
+    "analyzer_mode": "char",
+    "ngram_range": [
+      2,
+      3
+    ],
+    "min_df": 2,
+    "max_df": 1.0,
+    "max_features": 400000,
+    "sublinear_tf": true,
+    "vocabulary_size": 400000
+  },
+  "vectorizer_config": {
+    "analyzer_mode": "char",
+    "ngram_range": [
+      2,
+      3
+    ],
+    "min_df": 2,
+    "max_df": 1.0,
+    "max_features": 400000,
+    "sublinear_tf": true,
+    "min_token_length": 2,
+    "use_stopwords": true
+  },
+  "ablation": [
+    {
+      "name": "词级 unigram（M3 默认）",
+      "macro_f1": 0.9072354493913434,
+      "accuracy": 0.9072362129423016,
+      "vocabulary_size": 26461,
+      "note": "jieba 分词 + 单字词，最小词长 2，过滤停用词；词表不设上限"
+    },
+    {
+      "name": "词级 unigram + bigram",
+      "macro_f1": 0.9064344597912286,
+      "accuracy": 0.9064392731909467,
+      "vocabulary_size": 87494,
+      "note": "加入相邻词组合，可捕捉「服务 态度」这类搭配；词表上限 40 万"
+    },
+    {
+      "name": "字符级 2-3 gram（M3 实测最优）",
+      "macro_f1": 0.9274784365673281,
+      "accuracy": 0.9274784826267134,
+      "vocabulary_size": 400000,
+      "note": "不依赖分词，对口语化与错别字更稳健；词表上限 40 万"
+    }
+  ],
+  "tuning": [
+    {
+      "model_name": "sentiment_tfidf_logreg",
+      "hyperparameters": {
+        "C": 1.0
+      },
+      "dev_macro_f1": 0.9274784365673281,
+      "dev_accuracy": 0.9274784826267134
+    },
+    {
+      "model_name": "sentiment_tfidf_logreg",
+      "hyperparameters": {
+        "C": 10.0
+      },
+      "dev_macro_f1": 0.9301839913099266,
+      "dev_accuracy": 0.9301880777813197
+    },
+    {
+      "model_name": "sentiment_tfidf_svm",
+      "hyperparameters": {
+        "C": 0.5
+      },
+      "dev_macro_f1": 0.9335173065515816,
+      "dev_accuracy": 0.9335352247370099
+    },
+    {
+      "model_name": "sentiment_tfidf_svm",
+      "hyperparameters": {
+        "C": 1.0
+      },
+      "dev_macro_f1": 0.9330407238273665,
+      "dev_accuracy": 0.933057060886197
+    }
+  ],
+  "models": {
+    "sentiment_tfidf_logreg": {
+      "dev": {
+        "accuracy": 0.9301880777813197,
+        "macro_precision": 0.9301724604857868,
+        "macro_recall": 0.9302144301813495,
+        "macro_f1": 0.9301839913099266,
+        "weighted_f1": 0.9301897804777336,
+        "per_class": {
+          "负向": {
+            "precision": 0.9266730707652898,
+            "recall": 0.9326458266194005,
+            "f1": 0.9296498554449084,
+            "support": 3103
+          },
+          "正向": {
+            "precision": 0.9336718502062837,
+            "recall": 0.9277830337432986,
+            "f1": 0.9307181271749446,
+            "support": 3171
+          }
+        },
+        "confusion_matrix": [
+          [
+            2894,
+            209
+          ],
+          [
+            229,
+            2942
+          ]
+        ]
+      },
+      "test": {
+        "accuracy": 0.9367028061224489,
+        "macro_precision": 0.9366943380724513,
+        "macro_recall": 0.9367411010242941,
+        "macro_f1": 0.9367003586468869,
+        "weighted_f1": 0.9367045005286073,
+        "per_class": {
+          "负向": {
+            "precision": 0.9322683706070287,
+            "recall": 0.940380277151144,
+            "f1": 0.9363067543718916,
+            "support": 3103
+          },
+          "正向": {
+            "precision": 0.941120305537874,
+            "recall": 0.933101924897444,
+            "f1": 0.9370939629218824,
+            "support": 3169
+          }
+        },
+        "confusion_matrix": [
+          [
+            2918,
+            185
+          ],
+          [
+            212,
+            2957
+          ]
+        ]
+      },
+      "cost": {
+        "model_size_bytes": 18333938,
+        "single_sample_latency_ms": 0.494,
+        "batch_32_latency_ms": 7.154,
+        "throughput_per_sec": 4473.2,
+        "measured_on": "cpu",
+        "measured_at": "2026-09-21T20:24:51+08:00"
+      },
+      "hyperparameters": {
+        "C": 10.0
+      },
+      "description": "TF-IDF + 逻辑回归（二分类，原生输出概率）",
+      "model_dir": "models\\sentiment_tfidf_logreg",
+      "per_product_category": {
+        "书籍": {
+          "accuracy": 0.9116883116883117,
+          "macro_precision": 0.9163883786942728,
+          "macro_recall": 0.9071428571428571,
+          "macro_f1": 0.9101109707191122,
+          "weighted_f1": 0.9111934596195432,
+          "per_class": {
+            "负向": {
+              "precision": 0.9433962264150944,
+              "recall": 0.8571428571428571,
+              "f1": 0.8982035928143712,
+              "support": 175
+            },
+            "正向": {
+              "precision": 0.8893805309734514,
+              "recall": 0.9571428571428572,
+              "f1": 0.9220183486238532,
+              "support": 210
+            }
+          },
+          "confusion_matrix": [
+            [
+              150,
+              25
+            ],
+            [
+              9,
+              201
+            ]
+          ],
+          "support": 385,
+          "positive_rate": 0.545455,
+          "predicted_positive_rate": 0.587013
+        },
+        "平板": {
+          "accuracy": 0.937,
+          "macro_precision": 0.9372278432377049,
+          "macro_recall": 0.9369777479109916,
+          "macro_f1": 0.9369893512003529,
+          "weighted_f1": 0.9369909894772217,
+          "per_class": {
+            "负向": {
+              "precision": 0.927734375,
+              "recall": 0.9481037924151696,
+              "f1": 0.9378084896347483,
+              "support": 501
+            },
+            "正向": {
+              "precision": 0.9467213114754098,
+              "recall": 0.9258517034068137,
+              "f1": 0.9361702127659575,
+              "support": 499
+            }
+          },
+          "confusion_matrix": [
+            [
+              475,
+              26
+            ],
+            [
+              37,
+              462
+            ]
+          ],
+          "support": 1000,
+          "positive_rate": 0.499,
+          "predicted_positive_rate": 0.488
+        },
+        "手机": {
+          "accuracy": 0.9396551724137931,
+          "macro_precision": 0.9417562724014337,
+          "macro_recall": 0.9396551724137931,
+          "macro_f1": 0.9395833333333333,
+          "weighted_f1": 0.9395833333333334,
+          "per_class": {
+            "负向": {
+              "precision": 0.9112903225806451,
+              "recall": 0.9741379310344828,
+              "f1": 0.9416666666666667,
+              "support": 116
+            },
+            "正向": {
+              "precision": 0.9722222222222222,
+              "recall": 0.9051724137931034,
+              "f1": 0.9375,
+              "support": 116
+            }
+          },
+          "confusion_matrix": [
+            [
+              113,
+              3
+            ],
+            [
+              11,
+              105
+            ]
+          ],
+          "support": 232,
+          "positive_rate": 0.5,
+          "predicted_positive_rate": 0.465517
+        },
+        "水果": {
+          "accuracy": 0.9329329329329329,
+          "macro_precision": 0.9334224083971303,
+          "macro_recall": 0.9329498997995992,
+          "macro_f1": 0.9329157249597844,
+          "weighted_f1": 0.9329146494614626,
+          "per_class": {
+            "负向": {
+              "precision": 0.9186046511627907,
+              "recall": 0.9498997995991983,
+              "f1": 0.9339901477832512,
+              "support": 499
+            },
+            "正向": {
+              "precision": 0.94824016563147,
+              "recall": 0.916,
+              "f1": 0.9318413021363174,
+              "support": 500
+            }
+          },
+          "confusion_matrix": [
+            [
+              474,
+              25
+            ],
+            [
+              42,
+              458
+            ]
+          ],
+          "support": 999,
+          "positive_rate": 0.500501,
+          "predicted_positive_rate": 0.483483
+        },
+        "洗发水": {
+          "accuracy": 0.958958958958959,
+          "macro_precision": 0.9589779869172064,
+          "macro_recall": 0.9589559118236473,
+          "macro_f1": 0.9589583009764676,
+          "weighted_f1": 0.9589584654720905,
+          "per_class": {
+            "负向": {
+              "precision": 0.9562624254473161,
+              "recall": 0.962,
+              "f1": 0.959122632103689,
+              "support": 500
+            },
+            "正向": {
+              "precision": 0.9616935483870968,
+              "recall": 0.9559118236472945,
+              "f1": 0.9587939698492463,
+              "support": 499
+            }
+          },
+          "confusion_matrix": [
+            [
+              481,
+              19
+            ],
+            [
+              22,
+              477
+            ]
+          ],
+          "support": 999,
+          "positive_rate": 0.499499,
+          "predicted_positive_rate": 0.496496
+        },
+        "热水器": {
+          "accuracy": 0.8947368421052632,
+          "macro_precision": 0.8676470588235294,
+          "macro_recall": 0.7393617021276595,
+          "macro_f1": 0.7818877551020409,
+          "weighted_f1": 0.8837271750805585,
+          "per_class": {
+            "负向": {
+              "precision": 0.8333333333333334,
+              "recall": 0.5,
+              "f1": 0.625,
+              "support": 10
+            },
+            "正向": {
+              "precision": 0.9019607843137255,
+              "recall": 0.9787234042553191,
+              "f1": 0.9387755102040817,
+              "support": 47
+            }
+          },
+          "confusion_matrix": [
+            [
+              5,
+              5
+            ],
+            [
+              1,
+              46
+            ]
+          ],
+          "support": 57,
+          "positive_rate": 0.824561,
+          "predicted_positive_rate": 0.894737
+        },
+        "蒙牛": {
+          "accuracy": 0.9211822660098522,
+          "macro_precision": 0.9211344211344212,
+          "macro_recall": 0.9211344211344212,
+          "macro_f1": 0.9211344211344212,
+          "weighted_f1": 0.9211822660098522,
+          "per_class": {
+            "负向": {
+              "precision": 0.9230769230769231,
+              "recall": 0.9230769230769231,
+              "f1": 0.9230769230769231,
+              "support": 104
+            },
+            "正向": {
+              "precision": 0.9191919191919192,
+              "recall": 0.9191919191919192,
+              "f1": 0.9191919191919192,
+              "support": 99
+            }
+          },
+          "confusion_matrix": [
+            [
+              96,
+              8
+            ],
+            [
+              8,
+              91
+            ]
+          ],
+          "support": 203,
+          "positive_rate": 0.487685,
+          "predicted_positive_rate": 0.487685
+        },
+        "衣服": {
+          "accuracy": 0.955955955955956,
+          "macro_precision": 0.9560167555217061,
+          "macro_recall": 0.9559619238476953,
+          "macro_f1": 0.9559548526217063,
+          "weighted_f1": 0.9559546319548564,
+          "per_class": {
+            "负向": {
+              "precision": 0.9504950495049505,
+              "recall": 0.9619238476953907,
+              "f1": 0.9561752988047809,
+              "support": 499
+            },
+            "正向": {
+              "precision": 0.9615384615384616,
+              "recall": 0.95,
+              "f1": 0.9557344064386318,
+              "support": 500
+            }
+          },
+          "confusion_matrix": [
+            [
+              480,
+              19
+            ],
+            [
+              25,
+              475
+            ]
+          ],
+          "support": 999,
+          "positive_rate": 0.500501,
+          "predicted_positive_rate": 0.494494
+        },
+        "计算机": {
+          "accuracy": 0.9246231155778895,
+          "macro_precision": 0.9250094780740554,
+          "macro_recall": 0.9246231155778895,
+          "macro_f1": 0.9246059810062639,
+          "weighted_f1": 0.9246059810062638,
+          "per_class": {
+            "负向": {
+              "precision": 0.9378238341968912,
+              "recall": 0.9095477386934674,
+              "f1": 0.923469387755102,
+              "support": 199
+            },
+            "正向": {
+              "precision": 0.9121951219512195,
+              "recall": 0.9396984924623115,
+              "f1": 0.9257425742574258,
+              "support": 199
+            }
+          },
+          "confusion_matrix": [
+            [
+              181,
+              18
+            ],
+            [
+              12,
+              187
+            ]
+          ],
+          "support": 398,
+          "positive_rate": 0.5,
+          "predicted_positive_rate": 0.515075
+        },
+        "酒店": {
+          "accuracy": 0.918,
+          "macro_precision": 0.9181070354010628,
+          "macro_recall": 0.918,
+          "macro_f1": 0.9179947516641065,
+          "weighted_f1": 0.9179947516641065,
+          "per_class": {
+            "负向": {
+              "precision": 0.9114173228346457,
+              "recall": 0.926,
+              "f1": 0.9186507936507936,
+              "support": 500
+            },
+            "正向": {
+              "precision": 0.9247967479674797,
+              "recall": 0.91,
+              "f1": 0.9173387096774194,
+              "support": 500
+            }
+          },
+          "confusion_matrix": [
+            [
+              463,
+              37
+            ],
+            [
+              45,
+              455
+            ]
+          ],
+          "support": 1000,
+          "positive_rate": 0.5,
+          "predicted_positive_rate": 0.492
+        }
+      }
+    },
+    "sentiment_tfidf_svm": {
+      "dev": {
+        "accuracy": 0.9335352247370099,
+        "macro_precision": 0.9336258164897793,
+        "macro_recall": 0.9334669463118113,
+        "macro_f1": 0.9335173065515816,
+        "weighted_f1": 0.9335291360332236,
+        "per_class": {
+          "负向": {
+            "precision": 0.9377444589308996,
+            "recall": 0.927167257492749,
+            "f1": 0.9324258629071464,
+            "support": 3103
+          },
+          "正向": {
+            "precision": 0.9295071740486588,
+            "recall": 0.9397666351308736,
+            "f1": 0.934608750196017,
+            "support": 3171
+          }
+        },
+        "confusion_matrix": [
+          [
+            2877,
+            226
+          ],
+          [
+            191,
+            2980
+          ]
+        ]
+      },
+      "test": {
+        "accuracy": 0.9362244897959183,
+        "macro_precision": 0.936319951656886,
+        "macro_recall": 0.9361570206541843,
+        "macro_f1": 0.9362076181651655,
+        "weighted_f1": 0.9362185351027116,
+        "per_class": {
+          "负向": {
+            "precision": 0.9406586240626019,
+            "recall": 0.9297454076699968,
+            "f1": 0.9351701782820098,
+            "support": 3103
+          },
+          "正向": {
+            "precision": 0.93198127925117,
+            "recall": 0.9425686336383717,
+            "f1": 0.9372450580483213,
+            "support": 3169
+          }
+        },
+        "confusion_matrix": [
+          [
+            2885,
+            218
+          ],
+          [
+            182,
+            2987
+          ]
+        ]
+      },
+      "cost": {
+        "model_size_bytes": 24735890,
+        "single_sample_latency_ms": 1.638,
+        "batch_32_latency_ms": 7.895,
+        "throughput_per_sec": 4053.1,
+        "measured_on": "cpu",
+        "measured_at": "2026-09-21T20:24:58+08:00"
+      },
+      "hyperparameters": {
+        "C": 0.5
+      },
+      "description": "TF-IDF + 线性 SVM（经 CalibratedClassifierCV 校准，以满足契约概率要求）",
+      "model_dir": "models\\sentiment_tfidf_svm",
+      "per_product_category": {
+        "书籍": {
+          "accuracy": 0.8987012987012987,
+          "macro_precision": 0.9058441558441559,
+          "macro_recall": 0.8928571428571429,
+          "macro_f1": 0.8965117962078448,
+          "weighted_f1": 0.8978802352662535,
+          "per_class": {
+            "负向": {
+              "precision": 0.9415584415584416,
+              "recall": 0.8285714285714286,
+              "f1": 0.8814589665653495,
+              "support": 175
+            },
+            "正向": {
+              "precision": 0.8701298701298701,
+              "recall": 0.9571428571428572,
+              "f1": 0.9115646258503401,
+              "support": 210
+            }
+          },
+          "confusion_matrix": [
+            [
+              145,
+              30
+            ],
+            [
+              9,
+              201
+            ]
+          ],
+          "support": 385,
+          "positive_rate": 0.545455,
+          "predicted_positive_rate": 0.6
+        },
+        "平板": {
+          "accuracy": 0.941,
+          "macro_precision": 0.941156462585034,
+          "macro_recall": 0.9409817639270557,
+          "macro_f1": 0.9409928601360764,
+          "weighted_f1": 0.9409941582931535,
+          "per_class": {
+            "负向": {
+              "precision": 0.9333333333333333,
+              "recall": 0.9500998003992016,
+              "f1": 0.9416419386745796,
+              "support": 501
+            },
+            "正向": {
+              "precision": 0.9489795918367347,
+              "recall": 0.9318637274549099,
+              "f1": 0.9403437815975733,
+              "support": 499
+            }
+          },
+          "confusion_matrix": [
+            [
+              476,
+              25
+            ],
+            [
+              34,
+              465
+            ]
+          ],
+          "support": 1000,
+          "positive_rate": 0.499,
+          "predicted_positive_rate": 0.49
+        },
+        "手机": {
+          "accuracy": 0.9439655172413793,
+          "macro_precision": 0.9447918993373539,
+          "macro_recall": 0.9439655172413793,
+          "macro_f1": 0.9439394784289671,
+          "weighted_f1": 0.9439394784289671,
+          "per_class": {
+            "负向": {
+              "precision": 0.9256198347107438,
+              "recall": 0.9655172413793104,
+              "f1": 0.9451476793248945,
+              "support": 116
+            },
+            "正向": {
+              "precision": 0.963963963963964,
+              "recall": 0.9224137931034483,
+              "f1": 0.9427312775330396,
+              "support": 116
+            }
+          },
+          "confusion_matrix": [
+            [
+              112,
+              4
+            ],
+            [
+              9,
+              107
+            ]
+          ],
+          "support": 232,
+          "positive_rate": 0.5,
+          "predicted_positive_rate": 0.478448
+        },
+        "水果": {
+          "accuracy": 0.9319319319319319,
+          "macro_precision": 0.9320368499542984,
+          "macro_recall": 0.9319398797595191,
+          "macro_f1": 0.9319285897518117,
+          "weighted_f1": 0.9319281122975088,
+          "per_class": {
+            "负向": {
+              "precision": 0.9250493096646942,
+              "recall": 0.9398797595190381,
+              "f1": 0.9324055666003976,
+              "support": 499
+            },
+            "正向": {
+              "precision": 0.9390243902439024,
+              "recall": 0.924,
+              "f1": 0.9314516129032258,
+              "support": 500
+            }
+          },
+          "confusion_matrix": [
+            [
+              469,
+              30
+            ],
+            [
+              38,
+              462
+            ]
+          ],
+          "support": 999,
+          "positive_rate": 0.500501,
+          "predicted_positive_rate": 0.492492
+        },
+        "洗发水": {
+          "accuracy": 0.958958958958959,
+          "macro_precision": 0.9589729612736178,
+          "macro_recall": 0.9589619238476954,
+          "macro_f1": 0.9589587944653141,
+          "weighted_f1": 0.9589587122184916,
+          "per_class": {
+            "负向": {
+              "precision": 0.9617706237424547,
+              "recall": 0.956,
+              "f1": 0.958876629889669,
+              "support": 500
+            },
+            "正向": {
+              "precision": 0.9561752988047809,
+              "recall": 0.9619238476953907,
+              "f1": 0.9590409590409591,
+              "support": 499
+            }
+          },
+          "confusion_matrix": [
+            [
+              478,
+              22
+            ],
+            [
+              19,
+              480
+            ]
+          ],
+          "support": 999,
+          "positive_rate": 0.499499,
+          "predicted_positive_rate": 0.502503
+        },
+        "热水器": {
+          "accuracy": 0.8771929824561403,
+          "macro_precision": 0.8423076923076923,
+          "macro_recall": 0.6893617021276596,
+          "macro_f1": 0.7313131313131314,
+          "weighted_f1": 0.859826333510544,
+          "per_class": {
+            "负向": {
+              "precision": 0.8,
+              "recall": 0.4,
+              "f1": 0.5333333333333333,
+              "support": 10
+            },
+            "正向": {
+              "precision": 0.8846153846153846,
+              "recall": 0.9787234042553191,
+              "f1": 0.9292929292929293,
+              "support": 47
+            }
+          },
+          "confusion_matrix": [
+            [
+              4,
+              6
+            ],
+            [
+              1,
+              46
+            ]
+          ],
+          "support": 57,
+          "positive_rate": 0.824561,
+          "predicted_positive_rate": 0.912281
+        },
+        "蒙牛": {
+          "accuracy": 0.9310344827586207,
+          "macro_precision": 0.9313363158918498,
+          "macro_recall": 0.9307498057498058,
+          "macro_f1": 0.930952380952381,
+          "weighted_f1": 0.9310110250996951,
+          "per_class": {
+            "负向": {
+              "precision": 0.9245283018867925,
+              "recall": 0.9423076923076923,
+              "f1": 0.9333333333333333,
+              "support": 104
+            },
+            "正向": {
+              "precision": 0.9381443298969072,
+              "recall": 0.9191919191919192,
+              "f1": 0.9285714285714286,
+              "support": 99
+            }
+          },
+          "confusion_matrix": [
+            [
+              98,
+              6
+            ],
+            [
+              8,
+              91
+            ]
+          ],
+          "support": 203,
+          "positive_rate": 0.487685,
+          "predicted_positive_rate": 0.477833
+        },
+        "衣服": {
+          "accuracy": 0.958958958958959,
+          "macro_precision": 0.9589615948825241,
+          "macro_recall": 0.9589579158316632,
+          "macro_f1": 0.9589587944653141,
+          "weighted_f1": 0.9589588767121365,
+          "per_class": {
+            "负向": {
+              "precision": 0.9598393574297188,
+              "recall": 0.9579158316633266,
+              "f1": 0.958876629889669,
+              "support": 499
+            },
+            "正向": {
+              "precision": 0.9580838323353293,
+              "recall": 0.96,
+              "f1": 0.9590409590409591,
+              "support": 500
+            }
+          },
+          "confusion_matrix": [
+            [
+              478,
+              21
+            ],
+            [
+              20,
+              480
+            ]
+          ],
+          "support": 999,
+          "positive_rate": 0.500501,
+          "predicted_positive_rate": 0.501502
+        },
+        "计算机": {
+          "accuracy": 0.907035175879397,
+          "macro_precision": 0.9116189989785495,
+          "macro_recall": 0.9070351758793971,
+          "macro_f1": 0.9067756373327931,
+          "weighted_f1": 0.9067756373327931,
+          "per_class": {
+            "负向": {
+              "precision": 0.9550561797752809,
+              "recall": 0.8542713567839196,
+              "f1": 0.9018567639257294,
+              "support": 199
+            },
+            "正向": {
+              "precision": 0.8681818181818182,
+              "recall": 0.9597989949748744,
+              "f1": 0.9116945107398569,
+              "support": 199
+            }
+          },
+          "confusion_matrix": [
+            [
+              170,
+              29
+            ],
+            [
+              8,
+              191
+            ]
+          ],
+          "support": 398,
+          "positive_rate": 0.5,
+          "predicted_positive_rate": 0.552764
+        },
+        "酒店": {
+          "accuracy": 0.919,
+          "macro_precision": 0.9191357999991997,
+          "macro_recall": 0.919,
+          "macro_f1": 0.9189934384685159,
+          "weighted_f1": 0.9189934384685159,
+          "per_class": {
+            "负向": {
+              "precision": 0.9266802443991853,
+              "recall": 0.91,
+              "f1": 0.9182643794147326,
+              "support": 500
+            },
+            "正向": {
+              "precision": 0.9115913555992141,
+              "recall": 0.928,
+              "f1": 0.9197224975222993,
+              "support": 500
+            }
+          },
+          "confusion_matrix": [
+            [
+              455,
+              45
+            ],
+            [
+              36,
+              464
+            ]
+          ],
+          "support": 1000,
+          "positive_rate": 0.5,
+          "predicted_positive_rate": 0.509
+        }
+      }
+    }
+  }
+}

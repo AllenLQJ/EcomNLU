@@ -74,7 +74,11 @@ class FastTextPredictionTests(unittest.TestCase):
         result = predictor.predict_proba(["屏幕不错"])[0]
         self.assertEqual(list(result), CATEGORIES)
         self.assertAlmostEqual(sum(result.values()), 1.0)
-        self.assertEqual(result["平板"], 0.6)
+        # 适配器会对概率按总和等比归一（见 fasttext_adapter.predict_proba 的说明），
+        # 而 0.6 / (0.6 + 0.3 + 0.1) 在 IEEE-754 下等于 0.6000000000000001，
+        # 用 ``assertEqual`` 比较会因末位舍入而失败。断言语义仍是「平板 ≈ 0.6」，
+        # 故改用近似比较，不改变被测行为。
+        self.assertAlmostEqual(result["平板"], 0.6)
 
     def test_unknown_label_is_rejected(self) -> None:
         predictor = self.predictor_with_output(

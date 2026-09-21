@@ -4,6 +4,11 @@
 必须把分词和全部文本清洗步骤**封装进向量器内部**（例如用
 ``Pipeline``/``TfidfVectorizer(tokenizer=...)``），否则推理阶段的预处理会与训练
 阶段不一致，准确率会无报错地下降（AGENTS.md §5.2）。
+
+**本适配器是任务无关的**：标签集完全取自模型自己的 ``label_mapping.json``，
+没有硬编码 10 个类别。因此同一份代码既能服务主任务的 10 类商品模型，
+也能服务 M5 情感任务的 2 类情感模型——情感模型只是 ``categories`` 不同，
+不需要另写一个适配器（契约 v1.2 草案 §2.5）。
 """
 
 from __future__ import annotations
@@ -20,7 +25,11 @@ from src.inference.contract import (
 
 
 class SklearnCategoryPredictor(BaseCategoryPredictor):
-    """加载 ``model.joblib`` 与 ``vectorizer.joblib`` 完成预测。"""
+    """加载 ``model.joblib`` 与 ``vectorizer.joblib`` 完成预测。
+
+    ``categories`` 取自模型目录的 ``label_mapping.json``：主任务模型是 10 个商品类，
+    情感任务模型是 ``["负向", "正向"]``，由模型产物自身决定，与 ``metadata.task`` 无关。
+    """
 
     def __init__(self, model_dir: Path) -> None:
         self.model_dir = Path(model_dir)

@@ -41,6 +41,11 @@ def load_predictor(model_dir: str | Path) -> BaseCategoryPredictor:
     """按模型目录加载为统一的预测器。
 
     ``model_dir`` 必须符合 ``docs/contracts.md`` 第二章的模型产物契约。
+
+    **本函数是任务无关的**（契约 v1.2 草案 §2.5）：标签集取自该目录的
+    ``label_mapping.json``，与 ``metadata.task`` 无关。因此主任务模型返回覆盖
+    10 个商品类的概率，M5 情感模型返回覆盖 ``负向`` / ``正向`` 的概率，
+    调用方用同一段代码即可，无需按任务分支。
     """
     directory = Path(model_dir)
     if not directory.is_dir():

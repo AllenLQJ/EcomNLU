@@ -6,6 +6,17 @@
 ``src/inference/`` 中尚未实现的 ``load_predictor``，未实现时该项标记为 SKIP，
 不会被当作通过。
 
+按 ``metadata.task`` 区分两类模型：
+
+- ``category_classification``：10 个商品类。``label_mapping.json`` 必须与
+  ``data/processed/label_mapping.json`` **逐字节相同**；
+- ``sentiment_classification``（M5）：2 个情感类。``label_mapping.json`` 的
+  ``categories`` 必须与 ``configs/base.yaml`` 的 ``task.sentiment_categories`` 一致
+  （契约 v1.2 草案 §2.2）。
+
+两类的**统一推理入口都是** ``load_predictor``——适配器是任务无关的，
+标签集取自模型目录自己的 ``label_mapping.json``（草案 §2.5）。
+
 用法::
 
     python scripts/verify_model_contract.py models/tfidf_logreg
@@ -47,6 +58,11 @@ METADATA_REQUIRED_KEYS = (
     "device",
 )
 ALLOWED_TASKS = ("category_classification", "sentiment_classification")
+
+# 情感任务的标签顺序来源（契约 v1.2 草案 §2.2 / §2.6）：
+# configs/base.yaml 的 task.sentiment_categories。刻意不在本脚本里硬编码，
+# 也不在模块顶层 import src.inference——脚本要能在 src 包导入失败时仍给出结构类结论。
+CONFIG_PATH = PROJECT_ROOT / "configs" / "base.yaml"
 METRICS_BLOCK_KEYS = (
     "accuracy",
     "macro_precision",
@@ -143,7 +159,10 @@ def prediction_problems(
             problems.append(f"第 {index} 条概率不是字典")
             continue
         if set(item) != set(expected_categories):
-            problems.append(f"第 {index} 条未覆盖全部 10 个类别")
+            problems.append(
+                f"第 {index} 条未覆盖全部 {len(expected_categories)} 个标签："
+                f"期望 {sorted(expected_categories)}，实际 {sorted(item)}"
+            )
             continue
 
         invalid_values = [
@@ -190,6 +209,10 @@ class ModelContractValidator:
         self.processed_dir = processed_dir
         self.checks: list[CheckResult] = []
         self.label_mapping: dict[str, Any] | None = None
+        # 由 metadata.task 决定：类别任务比对 10 类商品映射，
+        # 情感任务比对 2 类情感映射。见 resolve_expected_categories。
+        self.task: str | None = None
+        self.expected_categories: list[str] | None = None
 
     def record(self, name: str, status: str, detail: str = "") -> bool:
         """记录一项校验结果。"""
@@ -229,6 +252,11 @@ class ModelContractValidator:
         metadata = self.load_json("metadata.json")
         metrics = self.load_json("metrics.json")
 
+        self.task = (metadata or {}).get("task")
+        # 标签集统一取自模型目录自己的 label_mapping.json（契约 v1.2 草案 §2.5）。
+        # 主任务那份是 10 个商品类，情感任务那份是 2 个情感类，规则完全相同。
+        self.expected_categories = (self.label_mapping or {}).get("categories") or None
+
         self.check_label_mapping()
         if metadata is not None:
             self.check_metadata(metadata)
@@ -240,8 +268,69 @@ class ModelContractValidator:
 
     # ---------------------------------------------------------------- 各项校验
 
+    def load_sentiment_categories(self) -> list[str] | None:
+        """从 ``configs/base.yaml`` 读取情感标签顺序。
+
+        契约 v1.2 草案 §2.2 / §2.6 把情感标签顺序的来源固定为配置项
+        ``task.sentiment_categories``：标签顺序是契约的一部分，必须集中管理、
+        能被校验器与 Web 层同时读取，不能散落在代码里。
+
+        返回：
+            情感标签列表；配置缺失或格式不符时返回 ``None``。
+        """
+        if not CONFIG_PATH.is_file():
+            return None
+        try:
+            import yaml
+        except ImportError:  # pragma: no cover - 依赖缺失时的兜底
+            return None
+        try:
+            payload = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8"))
+        except (yaml.YAMLError, OSError):
+            return None
+        if not isinstance(payload, dict):
+            return None
+        task_section = payload.get("task")
+        if not isinstance(task_section, dict):
+            return None
+        values = task_section.get("sentiment_categories")
+        if not isinstance(values, list) or not values:
+            return None
+        return [str(value) for value in values]
+
     def check_label_mapping(self) -> None:
-        """确认 label_mapping.json 与数据契约中的那份逐字节相同。"""
+        """按任务校验 ``label_mapping.json``。
+
+        契约 v1.2 草案 §2.2 把现行单条规则按任务分列：
+
+        - 主任务：与 ``data/processed/label_mapping.json`` **逐字节相同**（直接复制）；
+        - 情感任务：``categories`` 必须等于 ``configs/base.yaml`` 的
+          ``task.sentiment_categories``。
+
+        分成两条是必要的：情感模型的标签集与 10 个商品类**必然不同**，
+        套用字节比对会让任何情感模型在校验第一步就失败。
+        """
+        if self.task == "sentiment_classification":
+            expected = self.load_sentiment_categories()
+            if expected is None:
+                self.record(
+                    "label_mapping 与配置一致",
+                    "skip",
+                    f"{CONFIG_PATH.name} 缺少 task.sentiment_categories，无法判定情感标签",
+                )
+                return
+            actual = (self.label_mapping or {}).get("categories")
+            valid = actual == expected
+            self.record(
+                "label_mapping 与 task.sentiment_categories 一致",
+                "ok" if valid else "fail",
+                ""
+                if valid
+                else f"label_mapping.categories={actual}，配置={expected}"
+                "；情感模型的 label_mapping.json 必须按该配置生成，不得复制商品映射",
+            )
+            return
+
         reference = self.processed_dir / "label_mapping.json"
         if not reference.is_file():
             self.record(
@@ -376,11 +465,13 @@ class ModelContractValidator:
         )
 
         categories = metrics["categories"]
-        expected = (self.label_mapping or {}).get("categories")
+        expected = self.expected_categories
         self.record(
             "metrics.categories 与 label_mapping 一致",
             "ok" if categories == expected else "fail",
-            "" if categories == expected else f"metrics={categories}，label_mapping={expected}",
+            ""
+            if categories == expected
+            else f"metrics={categories}，label_mapping={expected}",
         )
 
         problems = self.check_metrics_block("dev", metrics["dev"], categories)
@@ -412,19 +503,22 @@ class ModelContractValidator:
             )
             return
 
-        load_predictor = getattr(inference_module, "load_predictor", None)
+        # 统一入口对两类任务是同一个（契约 v1.2 草案 §2.5）：
+        # 适配器是任务无关的，标签集取自模型目录自己的 label_mapping.json。
+        entry_name = "load_predictor"
+        load_predictor = getattr(inference_module, entry_name, None)
         if load_predictor is None:
             self.record(
                 "统一入口可加载并推理",
                 "skip",
-                "src.inference.load_predictor 尚未实现（需先完成 M6）",
+                f"src.inference.{entry_name} 尚未实现（需先完成 M6）",
             )
             return
         if not callable(load_predictor):
             self.record(
                 "统一入口可加载并推理",
                 "fail",
-                "src.inference.load_predictor 存在但不可调用",
+                f"src.inference.{entry_name} 存在但不可调用",
             )
             return
 
@@ -434,9 +528,9 @@ class ModelContractValidator:
             self.record("统一入口可加载并推理", "fail", f"加载失败：{type(exc).__name__}: {exc}")
             return
 
-        expected_categories = (self.label_mapping or {}).get("categories")
+        expected_categories = self.expected_categories
         if not expected_categories:
-            self.record("统一入口可加载并推理", "skip", "缺少 label_mapping，无法判定类别集合")
+            self.record("统一入口可加载并推理", "skip", "缺少标签映射，无法判定标签集合")
             return
 
         try:

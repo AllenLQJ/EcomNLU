@@ -27,6 +27,12 @@ task:
     - 衣服
     - 计算机
     - 酒店
+  # 情感任务的标签顺序（M5）。与原始数据 label 列的语义一致（0 为负向、1 为正向），
+  # 顺序固定不得调换：它是契约 v1.2 草案 §2.2 规定的 label_mapping.json 取值来源，
+  # 校验器、训练脚本与 Web 层都必须读这里，不得各自硬编码。
+  sentiment_categories:
+    - 负向
+    - 正向
 
 evaluation:
   primary_metric: macro_f1
