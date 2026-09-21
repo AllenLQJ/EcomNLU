@@ -4,7 +4,7 @@
 - 日期：2026-09-21
 - 对应阶段：AGENTS.md §5.4、`docs/contracts.md` 第二章
 - 数据：`data/processed/`（已通过数据契约校验 19/19；train 50,206 / dev 6,274 / test 6,272；
-  `metadata.json` 里的 `split_manifest_sha256` 与所有其它模型一致）
+  `metadata.json` 里的 `dataset_fingerprint` 与所有其它模型一致）
 
 ## 1. `max_length` 的确定依据
 
@@ -186,4 +186,3 @@ token 长度分布写入 `reports/bert-token-lengths.json`，模型契约信息�
 > 说明：在受限 shell（本机 DSH 的 workspace-write 沙箱）中直接跑测试时，有 4 个使用
 > `tempfile.TemporaryDirectory` 的用例会因沙箱拒绝写入临时目录而报 `PermissionError`；
 > 放开文件权限后同一套命令 **60 项全部通过**。这是运行环境的限制，不是代码缺陷。
-

@@ -101,7 +101,7 @@ class FastTextPredictionTests(unittest.TestCase):
             ["__label__平板", "__label__书籍", "__label__手机"],
             [float("nan"), 0.3, 0.7],
         )
-        with self.assertRaisesRegex(PredictorError, "\[0, 1\]"):
+        with self.assertRaisesRegex(PredictorError, r"\[0, 1\]"):
             predictor.predict_proba(["屏幕不错"])
 
     def test_probability_sum_is_checked(self) -> None:
