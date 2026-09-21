@@ -1,8 +1,8 @@
 # 接口契约（强制）
 
-版本：v1.0.1
+版本：v1.1
 首次生效：2026-09-21
-本版生效：2026-09-21（HuMingChang、HongSenYuan 已确认）
+本版生效：2026-09-21（三名成员已确认设备条款修订）
 维护人：LanQvJian
 
 ## 变更记录
@@ -11,13 +11,13 @@
 | --- | --- | --- | --- |
 | v1.0 | 2026-09-21 | 首次发布 | — |
 | v1.0.1 | 2026-09-21 | §2.3：`split_manifest_sha256` 改为 `dataset_fingerprint`，由 train/dev/test 三个 CSV 的内容哈希计算 | v1.0 的指纹取自 `split_manifest.json` 整体，该文件含 `created_at`，每次重新生成数据都会变化。即使三个 CSV 字节完全一致，模型仍会被判定为"基于旧数据训练"，导致 M3 无法通过验收（见 `reports/m3-validation.md` 阻断项） |
+| v1.1 | 2026-09-21 | §2.3：`device` 改为记录实际使用的 `cpu` 或 `cuda` | M4 可使用已验证的 CUDA 环境训练，契约不得把设备错误固定为 CPU |
 
-> **本版是 v1.0 的勘误（erratum），不是 v1.1。**
-> v1.0 规定的指纹条款任何人都无法通过校验，属于无法满足的缺陷，不是政策选择，因此不占用 v1.1 版本号。
+> **v1.0.1 是 v1.0 的勘误（erratum），不是功能扩展。**
+> v1.0 规定的指纹条款任何人都无法稳定通过重新生成校验，属于规范缺陷，因此当时没有占用 v1.1 版本号。
 >
-> **v1.1 已由 HongSenYuan 的修订提案预定**，用于情感任务产物约定、`device` 表述、
-> 冲突重复处理规则三项修订（见 `reports/meeting-notes/2026-09-21-contract-v1.1-proposal.md`），
-> 与本勘误互不影响，可分别推进。
+> v1.1 已通过 HongSenYuan 提出、HuMingChang 同意、LanQvJian 批准的设备条款修订。
+> 同一提案中的情感任务产物约定与冲突重复处理规则仍待决，不属于本版已生效内容。
 >
 > v1.0.1 仅改动 §2.3 的数据集指纹定义，其余条款与 v1.0 完全相同。
 > 2026-09-21 的两份契约确认纪要以 v1.0 为准，其 §2.3 相关描述由本版取代。
@@ -260,7 +260,9 @@ models/<model_name>/
   这是 v1.0 的缺陷（见 `reports/m3-validation.md`），不得回退。
 - `train_rows` 填实际参与训练的行数，不含 dev 与 test。
 - `max_length` 仅 BERT 类模型填写实际值，其余填 `null`。该值必须由本数据集 token 长度分布决定，不得照搬其它项目的 32（AGENTS.md §5.4）。
-- `device` 记录实际训练设备。本项目当前为纯 CPU，填 `"cpu"`。
+- `device` 必须记录实际使用的训练设备，取 `"cpu"` 或 `"cuda"`；不得填写未实际
+  使用的设备。若使用 CUDA，还必须在运行环境记录中注明 Python、PyTorch、CUDA
+  版本和 GPU 型号，以便复现实验。
 - `hyperparameters` 必须记录完整到可以复现训练。
 
 ### 2.4 metrics.json
@@ -305,10 +307,9 @@ models/<model_name>/
 
 所有模型必须能通过**同一个入口**加载，这是 M6 能用一段代码服务多个模型的前提。
 
-> **状态说明（2026-09-21）**：`src/inference/` 由 LanQvJian 在 M6 阶段实现，当前尚未写出。
-> 但**接口签名已经冻结**，模型训练方必须按下面的签名适配自己的模型，不要等待实现完成再动手。
-> 接口实现后，`scripts/verify_model_contract.py` 的「统一入口可加载并推理」一项才会从
-> SKIP 变为真实校验。
+> **状态说明（2026-09-21）**：`src/inference/` 已实现统一入口以及 scikit-learn、
+> FastText、Transformers 三类适配器；模型训练方必须按下面的冻结签名交付模型。
+> `scripts/verify_model_contract.py` 已通过统一入口执行真实加载与推理校验。
 
 接口定义如下（实现位于 `src/inference/`）：
 
@@ -465,12 +466,13 @@ python scripts/verify_model_contract.py models/<model_name>
 
 ## 五、生效确认
 
-本契约由 LanQvJian 起草。v1.0.1 已经 HuMingChang 与 HongSenYuan 确认，于
-2026-09-21 正式生效；后续如对条款有异议，应立即提出并记录在
+本契约由 LanQvJian 起草。v1.0.1 已经 HuMingChang 与 HongSenYuan 确认；v1.1
+设备条款由 HongSenYuan 提出、HuMingChang 同意并经 LanQvJian 批准，于
+2026-09-21 正式生效。后续如对条款有异议，应立即提出并记录在
 `reports/meeting-notes/`。
 
 | 成员 | 确认状态 | 日期 |
 | --- | --- | --- |
-| LanQvJian | 已确认（起草人） | 2026-09-21 |
-| HuMingChang | 已确认 v1.0.1（见 `reports/meeting-notes/2026-09-21-contract-confirmation-v1.0.1-humingchang.md`） | 2026-09-21 |
-| HongSenYuan | 已确认 v1.0.1；v1.0 的 6 项确认后待办继续有效（见 `reports/meeting-notes/2026-09-21-contract-confirmation-hongsenyuan.md`） | 2026-09-21 |
+| LanQvJian | 已确认 v1.1 设备条款（批准人） | 2026-09-21 |
+| HuMingChang | 已确认 v1.0.1，并同意 v1.1 设备条款（见相关确认记录） | 2026-09-21 |
+| HongSenYuan | 已确认 v1.0.1，并提出、同意 v1.1 设备条款；其余确认后待办继续有效 | 2026-09-21 |
