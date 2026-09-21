@@ -19,6 +19,11 @@ Usage:
     python scripts/predict.py --eval test                 # 默认 dev
     python scripts/predict.py --eval test --output scores.json
 
+    # 情感二分类模型（M5）：脚本会读模型自身的 metadata.task，自动切换标签空间
+    # 与真实标签列，无需额外参数
+    python scripts/predict.py --model models/sentiment_tfidf_svm --text "质量太差，用两天就坏了"
+    python scripts/predict.py --model models/sentiment_tfidf_svm --eval test
+
 输入文件：
     - 不带参数：读 ``data/processed/dev.csv``（验证集，自带真实标签）。
       之所以默认用它，是因为它既有数据又有标签，一条命令即可同时自检预测与分数；
@@ -38,6 +43,12 @@ Usage:
     预测时传入的是**原始评论文本**：清洗与分词由模型目录内的 ``vectorizer.joblib``
     在内部完成（见 ``docs/contracts.md`` §2.2 与 ``src/features/text_features.py``），
     因此这里不需要也不应该预先清洗文本。
+
+    类别任务与情感任务共用本脚本，**按模型目录内 ``metadata.json`` 的 ``task`` 字段分流**：
+    类别任务读 ``task.categories`` 与 ``data.category_column``（``cat`` 列本身已是中文类名）；
+    情感任务读 ``task.sentiment_categories`` 与 ``data.sentiment_column``（``label`` 列是原始
+    0/1，必须先经 ``translate_labels`` 翻成「负向/正向」再比对，否则准确率会恒为 0）。
+    分流依据是产物自述而非模型名，因此将来新增模型不必回来改本脚本。
 """
 
 from __future__ import annotations
@@ -63,6 +74,18 @@ from src.inference import load_predictor  # noqa: E402
 
 DEFAULT_MODEL_NAME = "tfidf_svm"
 
+#: M3 交付了三个类别模型的薄封装脚本，M5 追加一个情感模型的薄封装脚本。
+#: 本常量只作为「未指定 --model 时的兜底」保留给 predict.py 自身使用。
+
+#: 两个任务的取值。薄封装脚本通过 ``main(default_task=...)`` 指定，
+#: 不指定时由 :func:`resolve_task` 从模型目录的 ``metadata.json`` 读出。
+TASK_CATEGORY = "category_classification"
+TASK_SENTIMENT = "sentiment_classification"
+TASK_CHOICES = (TASK_CATEGORY, TASK_SENTIMENT)
+
+#: 打印时对标签的称呼，只影响文案，不参与任何计算。
+LABEL_NOUN_BY_TASK = {TASK_CATEGORY: "类别", TASK_SENTIMENT: "情感"}
+
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """解析命令行参数。
@@ -80,6 +103,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--model",
         default=None,
         help=f"模型目录。省略时优先用 models/{DEFAULT_MODEL_NAME}，否则取第一个可用模型",
+    )
+    parser.add_argument(
+        "--task",
+        choices=list(TASK_CHOICES),
+        default=None,
+        help=(
+            "按哪个任务解释模型输出。省略时读模型目录内 metadata.json 的 task 字段；"
+            "两者都没有时按类别任务处理"
+        ),
     )
     parser.add_argument("--text", default=None, help="单条评论文本")
     parser.add_argument("--file", default=None, help="含评论文本的 CSV 路径")
@@ -143,8 +175,110 @@ def resolve_model_dir(config: dict, explicit: str | None) -> Path:
     return candidates[0]
 
 
+def resolve_task(config: dict, model_dir: Path, explicit: str | None) -> str:
+    """决定按哪个任务解释模型的输出。
+
+    参数：
+        config：项目配置（本函数暂未使用，保留以与其它解析函数签名一致）。
+        model_dir：模型目录，其 ``metadata.json`` 的 ``task`` 字段是主要依据。
+        explicit：用户或薄封装脚本显式指定的任务；为真值时不看产物。
+
+    返回：
+        :data:`TASK_CATEGORY` 或 :data:`TASK_SENTIMENT`。
+
+    说明：
+        优先显式值，其次读产物自述，最后回退到类别任务——回退是为了兼容
+        M3 早期生成、``metadata.json`` 里还没有 ``task`` 字段的模型产物。
+        之所以用产物自述而不是模型名判断，是因为模型名一旦增删就要回来改本脚本，
+        而 ``task`` 字段是契约 §2.3 已经要求落盘的。
+    """
+    if explicit:
+        return str(explicit)
+
+    metadata_path = model_dir / "metadata.json"
+    if metadata_path.is_file():
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        task = metadata.get("task")
+        if task:
+            return str(task)
+    return TASK_CATEGORY
+
+
+def build_label_space(config: dict, task: str) -> tuple[list[str], str]:
+    """按任务给出标签顺序与真实标签列名。
+
+    参数：
+        config：项目配置。
+        task：任务标识。
+
+    返回：
+        ``(labels, truth_column)``。
+
+    异常：
+        ValueError：情感任务的标签不是恰好 2 个时抛出。标签顺序是契约
+            v1.2 草案 §2.2 规定的 ``label_mapping.json`` 取值来源，
+            长度不对说明配置被改坏了，必须显式报错。
+
+    说明：
+        两个任务的标签与列名都**只从 config 读**，不在脚本里硬编码，
+        以满足契约 v1.2 草案 §2.6「标签来源唯一」的要求。
+    """
+    data_config = config["data"]
+    if task == TASK_SENTIMENT:
+        labels = [str(value) for value in config["task"]["sentiment_categories"]]
+        if len(labels) != 2:
+            raise ValueError(f"task.sentiment_categories 必须恰好 2 个，实际为 {labels}")
+        return labels, data_config["sentiment_column"]
+    return (
+        [str(value) for value in config["task"]["categories"]],
+        data_config["category_column"],
+    )
+
+
+def read_truth_labels(
+    frame: pd.DataFrame, *, truth_column: str, task: str, labels: list[str]
+) -> list[str]:
+    """取出真实标签列并按任务归一成类名，供与预测结果直接比对。
+
+    参数：
+        frame：待评估的数据（已读入的划分 CSV 或 ``--file`` 指定的 CSV）。
+        truth_column：真实标签所在列。
+        task：任务标识。
+        labels：标签顺序，情感任务下用于 0/1 到中文类名的翻译。
+
+    返回：
+        与 ``frame`` 行数一致的真实类名列表。
+
+    异常：
+        KeyError：数据缺少真实标签列时抛出。
+
+    说明：
+        类别任务的 ``cat`` 列本身已是中文类名，转字符串即可；情感任务的
+        ``label`` 列按数据契约 §1.2 是 0/1，**必须翻译**——若直接拿 ``"0"``
+        去比预测出的「负向」，准确率会恒为 0 且不易察觉，属于会静默出错的坑。
+        翻译函数从 ``src.models.sentiment`` 延迟导入，避免类别任务也被牵连加载
+        情感模块（那里会拉起 sklearn 的 SVC 等实现）。
+    """
+    if truth_column not in frame.columns:
+        raise KeyError(
+            f"数据缺少真实标签列 {truth_column!r}；现有列：{list(frame.columns)}"
+        )
+
+    raw = frame[truth_column].tolist()
+    if task == TASK_SENTIMENT:
+        from src.models.sentiment.estimators import translate_labels  # noqa: PLC0415
+
+        return translate_labels(raw, labels)
+    return [str(value) for value in raw]
+
+
 def print_single_predictions(
-    predictor, texts: list[str], *, top_k: int, truth: list[str] | None = None
+    predictor,
+    texts: list[str],
+    *,
+    top_k: int,
+    truth: list[str] | None = None,
+    label_noun: str = "类别",
 ) -> float:
     """执行预测并打印逐条结果。
 
@@ -153,9 +287,10 @@ def print_single_predictions(
     参数：
         predictor：统一入口返回的预测器。
         texts：原始评论文本列表。
-        top_k：展示前 K 个类别。
+        top_k：展示前 K 个标签。
         truth：可选的真实标签；提供时会在每条前标出 ✓/✗ 并在末尾给出准确率。
             只有在输入数据自带标签时才可用（例如直接喂 ``data/processed/dev.csv``）。
+        label_noun：标签的称呼，类别任务为「类别」、情感任务为「情感」，只影响文案。
 
     返回：
         整批推理耗时（毫秒）。
@@ -175,9 +310,9 @@ def print_single_predictions(
             correct += int(is_correct)
             prefix = "✓ " if is_correct else "✗ "
         print(f"{prefix}[{index}] 评论：{text}")
-        print(f"    预测类别：{label}（置信度 {item.get(label, 0.0):.4f}）")
+        print(f"    预测{label_noun}：{label}（置信度 {item.get(label, 0.0):.4f}）")
         if truth is not None:
-            print(f"    真实类别：{truth[index - 1]}")
+            print(f"    真实{label_noun}：{truth[index - 1]}")
         print(
             "    Top-"
             + str(len(ranked))
@@ -192,13 +327,25 @@ def print_single_predictions(
     return elapsed_ms
 
 
-def run_evaluation(args: argparse.Namespace, predictor, model_dir: Path) -> int:
+def run_evaluation(
+    args: argparse.Namespace,
+    predictor,
+    model_dir: Path,
+    *,
+    task: str,
+    labels: list[str],
+    truth_column: str,
+) -> int:
     """在指定划分上计算评估分数。
 
     参数：
         args：命令行参数。
         predictor：统一入口返回的预测器。
         model_dir：模型目录，用于打印来源。
+        task：任务标识。类别任务才会附加「词面捷径」提示——该提示依赖
+            「评论里直接写出类别名」这一现象，对情感任务没有对应含义。
+        labels：该任务的标签空间，用于固定逐类指标的输出顺序。
+        truth_column：划分 CSV 中真实标签所在的列。
 
     返回：
         进程退出码。
@@ -206,8 +353,7 @@ def run_evaluation(args: argparse.Namespace, predictor, model_dir: Path) -> int:
     config = load_config(args.config)
     data_config = config["data"]
     text_column = data_config["text_column"]
-    category_column = data_config["category_column"]
-    categories = [str(c) for c in config["task"]["categories"]]
+    label_noun = LABEL_NOUN_BY_TASK.get(task, "标签")
 
     split_path = project_path(f"{data_config['processed_dir']}/{args.eval}.csv")
     if not split_path.is_file():
@@ -219,9 +365,12 @@ def run_evaluation(args: argparse.Namespace, predictor, model_dir: Path) -> int:
         frame = frame.head(args.limit)
 
     texts = frame[text_column].astype(str).tolist()
-    truth = frame[category_column].astype(str).tolist()
+    truth = read_truth_labels(
+        frame, truth_column=truth_column, task=task, labels=labels
+    )
 
     print(f"模型：{model_dir}")
+    print(f"任务：{task}")
     print(f"数据：{args.eval}（{len(texts):,} 条）\n")
     started = time.perf_counter()
     predictions = predictor.predict(texts)
@@ -231,7 +380,7 @@ def run_evaluation(args: argparse.Namespace, predictor, model_dir: Path) -> int:
     # 只预览前面若干条，避免 6000 余行输出把终端刷爆。
     if args.preview > 0:
         shown = min(args.preview, len(texts))
-        print(f"逐条预览（前 {shown} 条，✓ 表示预测与真实类别一致）：")
+        print(f"逐条预览（前 {shown} 条，✓ 表示预测与真实{label_noun}一致）：")
         for index in range(shown):
             flag = "✓" if predictions[index] == truth[index] else "✗"
             text = texts[index]
@@ -242,7 +391,7 @@ def run_evaluation(args: argparse.Namespace, predictor, model_dir: Path) -> int:
             )
         print()
 
-    block = compute_metrics_block(truth, predictions, categories=categories)
+    block = compute_metrics_block(truth, predictions, categories=labels)
     print(f"Macro-F1      {block['macro_f1']:.4f}")
     print(f"Accuracy      {block['accuracy']:.4f}")
     print(f"Macro-Precision {block['macro_precision']:.4f}")
@@ -250,24 +399,29 @@ def run_evaluation(args: argparse.Namespace, predictor, model_dir: Path) -> int:
     print(f"Weighted-F1   {block['weighted_f1']:.4f}")
     print(f"推理耗时      {elapsed_ms:.1f} ms（{elapsed_ms / max(len(texts), 1):.2f} ms/条）")
 
-    print("\n逐类别：")
-    print(f"  {'类别':<6} {'Precision':>10} {'Recall':>10} {'F1':>10} {'支持数':>8}")
-    for category in categories:
+    print(f"\n逐{label_noun}：")
+    print(f"  {label_noun:<6} {'Precision':>10} {'Recall':>10} {'F1':>10} {'支持数':>8}")
+    for category in labels:
         values = block["per_class"][category]
         print(
             f"  {category:<6} {values['precision']:>10.4f} {values['recall']:>10.4f} "
             f"{values['f1']:>10.4f} {values['support']:>8,}"
         )
 
-    # 词面捷径提示：这类类别的指标被「评论直接写出类别名」抬高，不能当作泛化能力
-    shortcuts = category_name_shortcut_shares(
-        frame, text_column=text_column, category_column=category_column
-    )
-    if shortcuts:
-        detail = "、".join(
-            f"{name}（{share:.1%} 的评论直接含类别名）" for name, share in shortcuts.items()
+    # 词面捷径提示：这类类别的指标被「评论直接写出类别名」抬高，不能当作泛化能力。
+    # 该现象只对商品类别任务成立（评论里会写出「手机」「酒店」），情感任务没有对应
+    # 含义，因此只在类别任务下计算，情感任务写空字典以保证输出 JSON 结构稳定。
+    shortcuts: dict[str, float] = {}
+    if task == TASK_CATEGORY:
+        shortcuts = category_name_shortcut_shares(
+            frame, text_column=text_column, category_column=truth_column
         )
-        print(f"\n注意：{detail}，该类别的指标被词面捷径抬高，不代表泛化能力。")
+        if shortcuts:
+            detail = "、".join(
+                f"{name}（{share:.1%} 的评论直接含类别名）"
+                for name, share in shortcuts.items()
+            )
+            print(f"\n注意：{detail}，该类别的指标被词面捷径抬高，不代表泛化能力。")
 
     if args.output:
         output_path = project_path(args.output)
@@ -276,6 +430,7 @@ def run_evaluation(args: argparse.Namespace, predictor, model_dir: Path) -> int:
             json.dumps(
                 {
                     "model_dir": str(model_dir),
+                    "task": task,
                     "split": args.eval,
                     "rows": len(texts),
                     "elapsed_ms": round(elapsed_ms, 3),
@@ -291,7 +446,12 @@ def run_evaluation(args: argparse.Namespace, predictor, model_dir: Path) -> int:
     return 0
 
 
-def main(argv: list[str] | None = None, *, default_model: str | None = None) -> int:
+def main(
+    argv: list[str] | None = None,
+    *,
+    default_model: str | None = None,
+    default_task: str | None = None,
+) -> int:
     """脚本入口。
 
     参数：
@@ -299,6 +459,9 @@ def main(argv: list[str] | None = None, *, default_model: str | None = None) -> 
         default_model：未通过 ``--model`` 指定时使用的模型目录。
             ``scripts/predict_logreg.py`` 等薄封装脚本通过它固定各自的模型，
             从而复用本函数而不必复制任何逻辑。
+        default_task：未通过 ``--task`` 指定时按哪个任务解释输出。
+            情感模型的薄封装脚本传 ``"sentiment_classification"``；留空时
+            由 :func:`resolve_task` 从模型的 ``metadata.json`` 自行判断。
 
     返回：
         进程退出码，成功为 0。
@@ -306,10 +469,19 @@ def main(argv: list[str] | None = None, *, default_model: str | None = None) -> 
     args = parse_args(argv)
     config = load_config(args.config)
     model_dir = resolve_model_dir(config, args.model or default_model)
+    task = resolve_task(config, model_dir, args.task or default_task)
+    labels, truth_column = build_label_space(config, task)
     predictor = load_predictor(model_dir)
 
     if args.eval:
-        return run_evaluation(args, predictor, model_dir)
+        return run_evaluation(
+            args,
+            predictor,
+            model_dir,
+            task=task,
+            labels=labels,
+            truth_column=truth_column,
+        )
 
     if args.text:
         texts = [args.text]
@@ -326,11 +498,13 @@ def main(argv: list[str] | None = None, *, default_model: str | None = None) -> 
         if args.limit:
             frame = frame.head(args.limit)
         texts = frame[args.text_column].astype(str).tolist()
-        # CSV 若自带标签列（例如直接喂 data/processed/dev.csv），就一并校验对错
-        category_column = config["data"]["category_column"]
+        # CSV 若自带真实标签列（例如直接喂 data/processed/dev.csv），就一并校验对错。
+        # 列名随任务变化：类别任务看 cat，情感任务看 label（原始 0/1，需要翻译）。
         truth = (
-            frame[category_column].astype(str).tolist()
-            if category_column in frame.columns
+            read_truth_labels(
+                frame, truth_column=truth_column, task=task, labels=labels
+            )
+            if truth_column in frame.columns
             else None
         )
     else:
@@ -341,13 +515,27 @@ def main(argv: list[str] | None = None, *, default_model: str | None = None) -> 
             "如需其他输入：--text 单条评论、--file 指定 CSV、--eval dev|test 切换划分。\n"
         )
         args.eval = "dev"
-        return run_evaluation(args, predictor, model_dir)
+        return run_evaluation(
+            args,
+            predictor,
+            model_dir,
+            task=task,
+            labels=labels,
+            truth_column=truth_column,
+        )
 
     if args.top_k < 1 or args.top_k > 10:
         raise SystemExit(f"--top-k 必须在 1-10 之间，实际为 {args.top_k}")
 
-    print(f"模型：{model_dir}\n")
-    print_single_predictions(predictor, texts, top_k=args.top_k, truth=truth)
+    print(f"模型：{model_dir}")
+    print(f"任务：{task}\n")
+    print_single_predictions(
+        predictor,
+        texts,
+        top_k=args.top_k,
+        truth=truth,
+        label_noun=LABEL_NOUN_BY_TASK.get(task, "标签"),
+    )
     return 0
 
 

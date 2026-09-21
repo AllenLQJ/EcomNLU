@@ -615,6 +615,101 @@ class ErrorTagTests(unittest.TestCase):
             self.assertIn(classify_error_tag(text), ERROR_TAGS)
 
 
+class SentimentPredictScriptTests(unittest.TestCase):
+    """``scripts/predict_sentiment_svm.py`` 与共享入口任务分流的守卫测试。
+
+    该脚本是 ``scripts/predict.py`` 的薄封装（与 M3 的 ``predict_svm.py`` 同构）。
+    这里锁住四件事：脚本固定的模型目录、它声明的任务、共享入口确实接受
+    ``default_task``、以及**任务分流读的是产物自述而不是模型名**。
+    最后一条最要紧：情感与类别任务共用同一套预测代码，唯一的差别就是
+    标签空间和真实标签列；一旦分流失效，脚本不会报错，而是给出恒为 0 的准确率，
+    这种静默错误若到演示现场才发现代价很高。
+    """
+
+    def test_wrapper_pins_model_dir_and_task(self) -> None:
+        """封装脚本固定的模型目录与任务必须与契约允许的命名对应。"""
+        import importlib
+
+        module = importlib.import_module("scripts.predict_sentiment_svm")
+        self.assertEqual(module.MODEL_DIR, "models/sentiment_tfidf_svm")
+        self.assertEqual(module.TASK, SENTIMENT_TASK)
+        self.assertIn("sentiment_tfidf_svm", SENTIMENT_MODEL_NAMES)
+
+    def test_shared_entry_accepts_a_default_task(self) -> None:
+        """共享入口必须接受 ``default_task``，否则封装脚本无法固定任务。"""
+        import inspect
+
+        from scripts.predict import main
+
+        signature = inspect.signature(main)
+        self.assertIn("default_task", signature.parameters)
+        self.assertIsNone(signature.parameters["default_task"].default)
+
+    def test_task_resolution_prefers_metadata_over_model_name(self) -> None:
+        """任务分流必须读产物自述：显式值优先，否则取 metadata.task。"""
+        config = load_config()
+        model_dir = PROJECT_ROOT / "models" / "sentiment_tfidf_svm"
+        if not (model_dir / "metadata.json").is_file():
+            self.skipTest("情感模型尚未训练")
+
+        from scripts.predict import TASK_CATEGORY, resolve_task
+
+        self.assertEqual(resolve_task(config, model_dir, None), SENTIMENT_TASK)
+        self.assertEqual(
+            resolve_task(config, model_dir, SENTIMENT_TASK), SENTIMENT_TASK
+        )
+        # 显式值应当能覆盖产物自述（用于临时按另一种口径读同一个模型）
+        self.assertEqual(
+            resolve_task(config, model_dir, TASK_CATEGORY), TASK_CATEGORY
+        )
+
+    def test_label_space_switches_with_task(self) -> None:
+        """情感任务取情感标签与 label 列，类别任务取 10 类与 cat 列。"""
+        from scripts.predict import TASK_CATEGORY, TASK_SENTIMENT, build_label_space
+
+        config = load_config()
+        self.assertEqual(
+            build_label_space(config, TASK_SENTIMENT),
+            (LABELS, config["data"]["sentiment_column"]),
+        )
+        labels, column = build_label_space(config, TASK_CATEGORY)
+        self.assertEqual(len(labels), 10)
+        self.assertEqual(column, config["data"]["category_column"])
+
+    def test_true_labels_are_translated_from_raw_zero_one(self) -> None:
+        """真实标签必须从原始 0/1 翻成中文情感名。
+
+        这是本任务最容易静默出错的一步：若拿 ``"0"`` 去比预测出的「负向」，
+        准确率会恒为 0 而不抛任何异常，因此用已知极性的序列直接断言方向。
+        """
+        import pandas as pd
+
+        from scripts.predict import TASK_SENTIMENT, read_truth_labels
+
+        frame = pd.DataFrame({"label": [0, 1, 1, 0]})
+        truth = read_truth_labels(
+            frame, truth_column="label", task=TASK_SENTIMENT, labels=LABELS
+        )
+        self.assertEqual(
+            truth, [NEGATIVE_NAME, POSITIVE_NAME, POSITIVE_NAME, NEGATIVE_NAME]
+        )
+
+    def test_missing_truth_column_raises_a_clear_error(self) -> None:
+        """缺少真实标签列时必须报出列名，而不是静默按「无标签」处理。"""
+        import pandas as pd
+
+        from scripts.predict import TASK_SENTIMENT, read_truth_labels
+
+        with self.assertRaises(KeyError) as context:
+            read_truth_labels(
+                pd.DataFrame({"review": ["很好"]}),
+                truth_column="label",
+                task=TASK_SENTIMENT,
+                labels=LABELS,
+            )
+        self.assertIn("label", str(context.exception))
+
+
 @unittest.skipUnless(
     (PROJECT_ROOT / "models" / "sentiment_tfidf_svm" / "metadata.json").is_file(),
     "情感模型尚未训练，跳过集成测试",
