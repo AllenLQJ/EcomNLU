@@ -22,7 +22,8 @@ from typing import Any, Iterator
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, StrictInt
 
 from src.web.config import DEFAULT_CONFIG_PATH, WebConfig, load_web_config
@@ -31,6 +32,10 @@ from src.web.service import SENTIMENT_ENABLED, PredictorService
 
 
 LOGGER = logging.getLogger(__name__)
+
+WEB_ROOT = Path(__file__).resolve().parent
+TEMPLATES_DIR = WEB_ROOT / "templates"
+STATIC_DIR = WEB_ROOT / "static"
 
 ERROR_RESPONSE_EXAMPLE = {
     "error": {"code": "EMPTY_REVIEW", "message": "评论内容不能为空"}
@@ -134,6 +139,27 @@ def register_routes(app: FastAPI, config: WebConfig, service: PredictorService) 
         return service.predict(review.strip(), top_k)
 
 
+def register_frontend(app: FastAPI) -> None:
+    """挂载首页与静态资源（说明书 §9.1）。
+
+    只新增 ``GET /`` 与 ``/static`` 两条路由，**不触碰任何 ``/api/*`` 端点**，
+    也不在服务端拼装页面展示内容——页面数据全部由浏览器调用契约端点取得。
+
+    资源目录缺失时只告警不报错，保证接口本身在缺少前端的仓库状态下仍可用。
+    """
+    if not TEMPLATES_DIR.is_dir() or not STATIC_DIR.is_dir():
+        LOGGER.warning(
+            "前端资源目录缺失，跳过页面挂载：%s / %s", TEMPLATES_DIR, STATIC_DIR
+        )
+        return
+
+    @app.get("/", include_in_schema=False)
+    async def index() -> FileResponse:
+        return FileResponse(TEMPLATES_DIR / "index.html", media_type="text/html")
+
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
 def create_app(
     config_path: str | Path | None = None,
     model_dir: str | Path | None = None,
@@ -158,6 +184,7 @@ def create_app(
     app.state.service = service
     register_error_handlers(app)
     register_routes(app, config, service)
+    register_frontend(app)
     return app
 
 
