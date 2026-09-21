@@ -17,7 +17,7 @@
 - [x] M3：TF-IDF 特征、线性基线与随机森林对比（待团队复核）
 - [x] M4：FastText 与 BERT（统一对比、错误分析与主部署模型决策已完成）
 - [ ] M5：模型优化与情感分析扩展
-- [ ] M6：Web 部署与答辩材料
+- [ ] M6：Web 部署与答辩材料（进行中，预测 API 已并入本分支）
 
 M2 已产出可复现的数据闭环：原始 62,774 条 → 清洗后 62,752 条，
 按类别分层划分为 50,206 / 6,274 / 6,272，跨集合重复文本为 0。
@@ -281,6 +281,44 @@ Web 服务的统一接口、请求字段、响应结构和错误码见
 [docs/contracts.md](docs/contracts.md)。单条评论的默认长度上限为 **2000 字符**，
 由 `configs/base.yaml` 中的 `api.max_review_chars` 统一配置；超限请求返回
 `REVIEW_TOO_LONG`，不会静默截断。
+
+## 启动 Web 服务
+
+模型未就绪时服务同样可以启动，此时健康检查返回 503 + `degraded`，预测接口返回
+`MODEL_NOT_LOADED`，便于在模型产物就绪前先联调页面和错误处理。
+
+```powershell
+python -m src.web.app                                # 不带模型启动
+python -m src.web.app --model-dir models/tfidf_svm   # 加载指定模型
+```
+
+模型目录也可用环境变量 `WEB_MODEL_DIR` 指定。
+
+| 参数 | 默认值 | 说明 |
+| --- | --- | --- |
+| `--model-dir` | 无 | 模型产物目录，须符合 [docs/contracts.md](docs/contracts.md) 第二章 |
+| `--host` | `127.0.0.1` | 监听地址 |
+| `--port` | `8000` | 监听端口 |
+| `--config` | `configs/base.yaml` | 配置文件路径 |
+
+启动后访问：
+
+| 地址 | 说明 |
+| --- | --- |
+| http://127.0.0.1:8000/docs | 交互式接口文档（可现场演示） |
+| http://127.0.0.1:8000/api/health | 健康检查 |
+| http://127.0.0.1:8000/api/categories | 类别列表 |
+| http://127.0.0.1:8000/api/predict | 单条评论预测（POST） |
+
+模型在服务启动时加载**一次**，请求处理中不重复加载（契约 §3.5）。
+
+接口的自动化检查（19 项，不需要模型产物）：
+
+```powershell
+python -m unittest discover -s tests -p "test_web.py" -v
+```
+
+Web 模块的已验证运行环境为 Python 3.10.20、FastAPI 0.141.1、pydantic 2.13.5、uvicorn 0.52.4。
 
 ## 团队
 

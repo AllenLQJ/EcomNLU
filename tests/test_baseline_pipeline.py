@@ -834,16 +834,23 @@ class PredictScriptTests(unittest.TestCase):
         self.assertIsNone(signature.parameters["default_model"].default)
 
     def test_relative_model_paths_resolve_against_project_root(self) -> None:
-        """相对模型路径必须按项目根目录解析，使脚本可在任意工作目录运行。"""
+        """相对模型路径必须按项目根目录解析，使脚本可在任意工作目录运行。
+
+        这里刻意用 ``models`` 这个仓库中必然存在的目录（``models/README.md`` 已入库），
+        而不是 ``models/tfidf_svm``。``resolve_model_dir`` 会校验目录真实存在，而模型
+        产物按 ``.gitignore`` 不入库、且按 M3 验收结论在记录证据后会被清理，用具体模型名
+        会让本用例变成"模型在时通过、模型删后报错"——它真正要测的是路径解析逻辑，
+        不该依赖一个与被测行为无关的产物是否恰好存在。
+        """
         from scripts.predict import resolve_model_dir
 
         if not project_path("models/tfidf_svm").is_dir():
             # 与同类测试保持一致：M3 产物被 .gitignore 排除，未训练时跳过而不是报错。
             self.skipTest("models/tfidf_svm 尚未训练（见 README 的 M3 命令）")
         config = load_config()
-        resolved = resolve_model_dir(config, "models/tfidf_svm")
+        resolved = resolve_model_dir(config, "models")
         self.assertTrue(resolved.is_absolute())
-        self.assertEqual(resolved, project_path("models/tfidf_svm"))
+        self.assertEqual(resolved, project_path("models"))
 
     def test_missing_model_dir_raises_a_clear_error(self) -> None:
         """不存在的模型目录必须报错并给出路径，而不是静默回退到别的模型。"""
