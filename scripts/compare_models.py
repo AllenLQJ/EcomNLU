@@ -85,8 +85,8 @@ def render_comparison(rows: Sequence[dict[str, Any]]) -> str:
         "> 所有数值读取自各模型目录中真实评测产出的 `metrics.json`；未完成的模型标注为「未提供」，",
         "> 不填估算值。选模依据是**验证集 Macro-F1**（AGENTS.md §6），测试集仅用于最终确认。",
         "",
-        "| 模型 | dev Macro-F1 | dev Acc | test Macro-F1 | test Acc | 模型大小 (MB) | 单条延迟 (ms) | 批量32 (ms) | 吞吐 (条/秒) |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| 模型 | dev Macro-F1 | dev Acc | test Macro-F1 | test Acc | 模型大小 (MB) | 单条延迟 (ms) | 批量32 (ms) | 吞吐 (条/秒) | 设备 |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |",
     ]
     for row in sorted(rows, key=lambda item: (item["dev_macro_f1"] is None, -(item["dev_macro_f1"] or 0))):
         def fmt(value: Any, digits: int = 4) -> str:
@@ -97,7 +97,7 @@ def render_comparison(rows: Sequence[dict[str, Any]]) -> str:
             return str(value)
 
         lines.append(
-            "| {name} | {dev_f1} | {dev_acc} | {test_f1} | {test_acc} | {size} | {single} | {batch} | {throughput} |".format(
+            "| {name} | {dev_f1} | {dev_acc} | {test_f1} | {test_acc} | {size} | {single} | {batch} | {throughput} | {device} |".format(
                 name=row["name"],
                 dev_f1=fmt(row["dev_macro_f1"]),
                 dev_acc=fmt(row["dev_accuracy"]),
@@ -109,8 +109,21 @@ def render_comparison(rows: Sequence[dict[str, Any]]) -> str:
                 single=fmt(row["single_sample_latency_ms"], 2),
                 batch=fmt(row["batch_32_latency_ms"], 2),
                 throughput=fmt(row["throughput_per_sec"], 1),
+                device=row.get("measured_on") or "未记录",
             )
         )
+
+    # 延迟与吞吐必须标出测量设备：BERT 类模型在本机由适配器自动选择 cuda，
+    # 而 int8 动态量化产物只能跑 cpu，两者混在同一列会被误读成"量化更慢"。
+    devices = {row.get("measured_on") for row in rows if row.get("measured_on")}
+    if len(devices) > 1:
+        lines += [
+            "",
+            f"> **注意**：上表的延迟与吞吐分别在不同设备上实测（本机出现的设备："
+            f"{'、'.join(sorted(devices))}），**跨设备行不可直接比较**。",
+            "> 比较优化前后性能时，必须先把两者归一到同一设备（见 "
+            "`reports/m5-quantization-report.md` 的 CPU 对比表）。",
+        ]
 
     lines += ["", "## 模型族覆盖情况", "", "| 模型族 | 状态 |", "| --- | --- |"]
     provided = {row["name"] for row in rows}
