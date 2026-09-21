@@ -11,8 +11,8 @@
 | 时间 | 里程碑 | 负责人 | 参与人 | 验收标准 | 状态 |
 | --- | --- | --- | --- | --- | --- |
 | 9 月 20 日前 | M1 项目初始化 | LanQvJian | 全员 | 目录、依赖、README、数据来源、分工、计划完整；下载脚本和基础检查通过 | 已完成 |
-| 9 月 21 日上午 | M2 数据闭环 | HuMingChang | 全员 | 清洗和 8:1:1 分层划分可复现；无明显文本跨集合泄漏；核心 EDA 图表和结论齐全 | 待验收 |
-| 9 月 21 日下午 | M3 基线闭环 | HuMingChang | LanQvJian | TF-IDF 线性模型与随机森林完成；模型可重载；测试指标完整 | 未开始 |
+| 9 月 21 日上午 | M2 数据闭环 | HuMingChang | 全员 | 清洗和 8:1:1 分层划分可复现；无明显文本跨集合泄漏；核心 EDA 图表和结论齐全 | 已完成 |
+| 9 月 21 日下午 | M3 基线闭环 | HuMingChang | LanQvJian | TF-IDF 线性模型与随机森林完成；模型可重载；测试指标完整 | 待修复后验收 |
 | 9 月 21 日下午至晚间 | M4 高级模型 | HongSenYuan | HuMingChang | FastText 完成；BERT 至少完成可复现训练与评估；使用同一测试集对比 | 未开始 |
 | 9 月 21 日晚间至 9 月 22 日上午 | M5 优化与创新 | HongSenYuan | LanQvJian | 在时间允许范围内完成一种模型优化或情感任务；未完成项如实标记 | 未开始 |
 | 9 月 21 日下午至 9 月 22 日 10:00 | M6 部署与答辩 | LanQvJian | 全员 | Web/API 真实推理通过；演示材料和离线备用方案齐全 | 未开始 |
@@ -35,7 +35,7 @@
 - [x] 设置并验证 `main` 保护分支规则
 - [x] 建立研发计划、晨会和日报模板
 
-### M2 待验收（2026-09-21 上午完成）
+### M2 已完成并正式验收（2026-09-21）
 
 - [x] 原始数据质量检查 → 由 `python src/data/check_raw.py` 承担，报告见 `reports/data-quality/raw_quality_report.md`
 - [x] 明确缺失、重复、超短和超长文本处理规则 → `reports/data-cleaning-report.md` 第 3 节
@@ -48,14 +48,16 @@
       组长的 `scripts/verify_data_contract.py` 校验 **19 项通过、0 项失败、0 项跳过**
 
 证据与复现命令见 `reports/daily-reports/2026-09-21-HuMingChang.md`。
-自动化检查：`python -m unittest discover -s tests -v` → **51 项测试全部通过**
-（数据流水线 42 项 + 项目结构 3 项 + 契约校验器 6 项；与契约分支合并后统计）。
+自动化检查：`python -m unittest discover -s tests -v` → **60 项测试全部通过**
+（以 M2 主线正式验收时的实际测试发现结果为准）。
 
-待非作者成员复核（满足计划中「待验收」条件）：
+非作者复核结果：
 
-- [ ] LanQvJian 复核数据流程可复现性，并用相同命令重跑一次核对数字
-- [ ] LanQvJian / HongSenYuan 目视检查 `reports/figures/` 八张图的排版与可读性
-- [ ] 确认 `requirements.txt` 的 `pandas<3.0` 约束与实际 3.0.5 的取舍（见 `reports/environment.md`）
+- [x] LanQvJian 使用 Conda `py310` 环境从原始数据重跑清洗、划分和 EDA，数字与报告一致
+- [x] 目视检查 `reports/figures/` 八张图：中文、标题、坐标、图例和数据标注均可读
+- [x] 在 `pandas 2.3.3` 下通过数据契约和全部 M2 测试，保留 `requirements.txt` 的 `pandas<3.0` 约束
+
+正式验收记录见 `reports/m2-acceptance.md`。
 
 ### M3 下一步
 

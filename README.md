@@ -13,7 +13,7 @@
 ## 当前进度
 
 - [x] M1：项目初始化
-- [x] M2：数据清洗、分层划分与 EDA（待团队复核，见 `docs/development-plan.md`）
+- [x] M2：数据清洗、分层划分与 EDA（已正式验收，见 `reports/m2-acceptance.md`）
 - [ ] M3：TF-IDF 线性基线与随机森林
 - [ ] M4：FastText 与 BERT
 - [ ] M5：模型优化与情感分析扩展
