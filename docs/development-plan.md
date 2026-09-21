@@ -53,11 +53,11 @@
 自动化检查：`python -m unittest discover -s tests -v` → **51 项测试全部通过**
 （数据流水线 42 项 + 项目结构 3 项 + 契约校验器 6 项；与契约分支合并后统计）。
 
-后续非阻断复核：
+M2 后续复核已完成：
 
-- [ ] LanQvJian 复核数据流程可复现性，并用相同命令重跑一次核对数字
-- [ ] LanQvJian / HongSenYuan 目视检查 `reports/figures/` 八张图的排版与可读性
-- [ ] 确认 `requirements.txt` 的 `pandas<3.0` 约束与实际 3.0.5 的取舍（见 `reports/environment.md`）
+- [x] LanQvJian 复核数据流程可复现性，并用相同命令重跑一次核对数字
+- [x] LanQvJian / HongSenYuan 目视检查 `reports/figures/` 八张图的排版与可读性
+- [x] 完成 `pandas` 版本取舍：保留 `requirements.txt` 的 `>=2.1,<3.0`；最终验收使用的 Conda `py310` 为 `pandas==2.3.3`，符合约束
 
 ### M3 已完成（2026-09-21 下午完成）
 
