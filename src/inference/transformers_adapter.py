@@ -3,6 +3,10 @@
 从模型目录下的 ``model/`` 与 ``tokenizer/`` 子目录加载，二者都由
 ``save_pretrained`` 产出（契约 §2.2）。``max_length`` 取自 ``metadata.json``——
 契约 §2.3 要求该值由本数据集的 token 长度分布决定，不得照搬其它项目。
+
+本适配器同时承担 M5 量化产物的加载：``metadata.json`` 里出现 ``quantization``
+字段时改走 :mod:`src.models.optimization.quantization` 的量化加载路径，并**强制在
+CPU 上推理**——int8 动态量化只对 CPU 有加速，放到 GPU 上反而更慢。
 """
 
 from __future__ import annotations
@@ -67,14 +71,30 @@ class TransformersCategoryPredictor(BaseCategoryPredictor):
                 "未安装 torch / transformers，请先执行 pip install -r requirements.txt"
             ) from exc
 
+        # metadata 里的 quantization 字段决定加载路径：量化产物的 ``model/`` 下只有
+        # ``quantized_state_dict.pt``，没有 model.safetensors，必须走专用加载器。
+        self.is_quantized: bool = isinstance(metadata.get("quantization"), dict)
+
         try:
-            self.tokenizer: Any = AutoTokenizer.from_pretrained(str(tokenizer_path))
-            self.model: Any = AutoModelForSequenceClassification.from_pretrained(str(model_path))
+            if self.is_quantized:
+                from src.models.optimization.quantization import load_quantized_model
+
+                self.model, self.tokenizer = load_quantized_model(self.model_dir)
+            else:
+                self.tokenizer = AutoTokenizer.from_pretrained(str(tokenizer_path))
+                self.model = AutoModelForSequenceClassification.from_pretrained(
+                    str(model_path)
+                )
         except Exception as exc:
             raise PredictorError(f"模型或分词器加载失败：{type(exc).__name__}: {exc}") from exc
 
         self._torch = torch
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        # 量化模型固定在 CPU：int8 动态量化的收益来自 CPU 上的 oneDNN/fbgemm 算子，
+        # 搬到 CUDA 上既无对应算子、又会因权重反复反量化而变慢。
+        if self.is_quantized:
+            self.device = "cpu"
+        else:
+            self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model.to(self.device)
         self.model.eval()
 
