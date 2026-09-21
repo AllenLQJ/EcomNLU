@@ -74,7 +74,7 @@ class FastTextPredictionTests(unittest.TestCase):
         result = predictor.predict_proba(["屏幕不错"])[0]
         self.assertEqual(list(result), CATEGORIES)
         self.assertAlmostEqual(sum(result.values()), 1.0)
-        self.assertEqual(result["平板"], 0.6)
+        self.assertAlmostEqual(result["平板"], 0.6)
 
     def test_unknown_label_is_rejected(self) -> None:
         predictor = self.predictor_with_output(
@@ -97,7 +97,7 @@ class FastTextPredictionTests(unittest.TestCase):
             ["__label__平板", "__label__书籍", "__label__手机"],
             [float("nan"), 0.3, 0.7],
         )
-        with self.assertRaisesRegex(PredictorError, "\[0, 1\]"):
+        with self.assertRaisesRegex(PredictorError, r"\[0, 1\]"):
             predictor.predict_proba(["屏幕不错"])
 
     def test_probability_sum_is_checked(self) -> None:

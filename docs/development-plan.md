@@ -13,14 +13,16 @@
 | 9 月 20 日前 | M1 项目初始化 | LanQvJian | 全员 | 目录、依赖、README、数据来源、分工、计划完整；下载脚本和基础检查通过 | 已完成 |
 | 9 月 21 日上午 | M2 数据闭环 | HuMingChang | 全员 | 清洗和 8:1:1 分层划分可复现；无明显文本跨集合泄漏；核心 EDA 图表和结论齐全 | 已完成 |
 | 9 月 21 日下午 | M3 基线闭环 | HuMingChang | LanQvJian | TF-IDF 线性模型与随机森林完成；模型可重载；测试指标完整 | 已完成 |
-| 9 月 21 日下午至晚间 | M4 高级模型 | HongSenYuan | HuMingChang | FastText 完成；BERT 至少完成可复现训练与评估；使用同一测试集对比 | 进行中（待推送远端分支） |
-| 9 月 21 日晚间至 9 月 22 日上午 | M5 优化与创新 | HongSenYuan | LanQvJian | 在时间允许范围内完成一种模型优化或情感任务；未完成项如实标记 | 未开始 |
-| 9 月 21 日下午至 9 月 22 日 10:00 | M6 部署与答辩 | LanQvJian | 全员 | Web/API 真实推理通过；演示材料和离线备用方案齐全 | 进行中（API 骨架测试通过，真实模型联调待完成） |
+| 9 月 21 日下午至晚间 | M4 高级模型 | HongSenYuan | HuMingChang、LanQvJian | FastText 完成；BERT 至少完成可复现训练与评估；使用同一测试集对比 | 已完成 |
+| 9 月 21 日晚间至 9 月 22 日上午 | M5 优化与创新 | HuMingChang、HongSenYuan | LanQvJian | 情感基线与一种 BERT 优化形成可复现闭环；未完成项如实标记 | 进行中 |
+| 9 月 21 日下午至 9 月 22 日 10:00 | M6 部署与答辩 | LanQvJian | 全员 | Web/API 真实推理通过；演示材料和离线备用方案齐全 | 进行中（真实 BERT API 联调通过，页面与答辩材料待完成） |
 | 9 月 22 日 10:00–11:30 | 集成验收 | LanQvJian | 全员 | 合并已验收代码、运行端到端检查、确认汇报分工 | 未开始 |
 | 9 月 22 日 11:30 | 代码与材料冻结 | LanQvJian | 全员 | 停止非必要功能开发，只处理阻断性问题 | 未开始 |
 | 9 月 22 日 12:00 | 项目截止 | LanQvJian | 全员 | 提交最终代码、报告和演示材料 | 未开始 |
 
 ## 当前待办
+
+> 状态更新时间：2026-09-21。M4 已完成最终验收并合入 `main`；当前进入 M5 并行开发阶段。
 
 ### M1 已完成
 
@@ -51,11 +53,11 @@
 自动化检查：`python -m unittest discover -s tests -v` → **51 项测试全部通过**
 （数据流水线 42 项 + 项目结构 3 项 + 契约校验器 6 项；与契约分支合并后统计）。
 
-后续非阻断复核：
+M2 后续复核已完成：
 
-- [ ] LanQvJian 复核数据流程可复现性，并用相同命令重跑一次核对数字
-- [ ] LanQvJian / HongSenYuan 目视检查 `reports/figures/` 八张图的排版与可读性
-- [ ] 确认 `requirements.txt` 的 `pandas<3.0` 约束与实际 3.0.5 的取舍（见 `reports/environment.md`）
+- [x] LanQvJian 复核数据流程可复现性，并用相同命令重跑一次核对数字
+- [x] LanQvJian / HongSenYuan 目视检查 `reports/figures/` 八张图的排版与可读性
+- [x] 完成 `pandas` 版本取舍：保留 `requirements.txt` 的 `>=2.1,<3.0`；最终验收使用的 Conda `py310` 为 `pandas==2.3.3`，符合约束
 
 ### M3 已完成（2026-09-21 下午完成）
 
@@ -78,20 +80,49 @@
 证据见 `reports/daily-reports/2026-09-21-HuMingChang.md` 的 M3 部分与
 `reports/m3-baseline-results.json`。
 
-后续与 M4/M6 联调时复核：
+M4/M6 联调复核结果：
 
-- [ ] LanQvJian 用 `python scripts/verify_model_contract.py` 复核三个模型的契约合规
-- [ ] HongSenYuan 确认 M4 与本报告使用**同一份测试集**（数据集指纹见报告第 1 节，
+- [x] LanQvJian 用 `python scripts/verify_model_contract.py` 复核三个模型的契约合规（三个模型各 15 项通过）
+- [x] HongSenYuan 确认 M4 与本报告使用**同一份测试集**（数据集指纹见报告第 1 节，
       按契约 §2.3 v1.0.1 由三个划分 CSV 的内容哈希算出，不受 `created_at` 影响）
-- [ ] 确认 `models/tfidf_svm/`（105.98 MB）作为 M6 演示候选模型的可行性
+- [x] 完成 M6 候选评估：`tfidf_svm` 可作为本地备用模型；主部署模型最终选定 `bert_base_chinese`
 
-### M4 / M5 下一步（HongSenYuan）
+### M4 已完成（2026-09-21 最终验收通过）
 
-- [ ] FastText（字符级与词级）训练与评估
-- [ ] BERT 微调：`max_length` 依 `reports/eda-report.md` 第 7 节结论取 128 或 256，
-      不得照搬原项目的 32
-- [ ] 与 `models/tfidf_svm/` 在同一测试集上对比，填入统一指标的 `metrics.json`
-- [ ] 模型优化或情感二分类扩展
+- [x] HongSenYuan 提供 M4 分支、训练参数、实际指标、模型产物说明和复现命令
+- [x] HuMingChang 技术复核：相同数据集指纹、相同标签顺序、相同评估口径、验证集选模且测试集未参与调参
+- [x] HuMingChang 复核 FastText/BERT 的 `metrics.json`，并与 `tfidf_svm` 在同一测试集上对比
+- [x] LanQvJian 最终检验：模型契约、磁盘重载、单条/批量真实推理、大小、延迟及 M6 部署可行性
+- [x] 修复全部阻断项并完成复验；`fix/m4-final-acceptance` 已合入并推送至 `main`（提交 `01a8fba`）
+
+复核与最终验收记录见 `reports/m4-review.md`。
+
+### M5 进行中：并行任务
+
+当前阶段为 M5 开发：HuMingChang 推进情感二分类基线，HongSenYuan 推进 BERT 优化；以下复选项须以实际分支交付和验收结果为准。
+
+#### HuMingChang：情感二分类基线
+
+- [ ] 在 `feature/sentiment-baseline` 开发，使用现有 `label` 字段，不重复制作标签
+- [ ] 完成 TF-IDF + 逻辑回归；时间允许时增加校准 LinearSVC
+- [ ] 按验证集 Macro-F1 选模，测试集只用于最终评估
+- [ ] 报告 Accuracy、Macro Precision、Macro Recall、Macro-F1、混淆矩阵，以及各商品类别内的情感表现
+- [ ] 保存模型、向量器、标签映射和元数据，通过统一推理接口返回正负情感及置信度
+- [ ] 记录否定句、反讽、评价对象不明确等典型错误
+
+#### HongSenYuan：BERT 优化
+
+- [ ] 在 `feature/bert-optimization` 开发，基于已通过 M4 复核的 BERT 产物
+- [ ] 至少完成动态量化、蒸馏或剪枝中的一种，不得只以“成功保存”作为完成依据
+- [ ] 重新加载优化产物并完成真实推理
+- [ ] 对比优化前后的 Macro-F1、模型大小、参数量或稀疏度、单条/批量延迟和吞吐量
+- [ ] 时间允许时再增加 BERT 情感分类或类别与情感多任务模型
+
+#### M5 验收
+
+- [ ] HuMingChang 与 HongSenYuan 交叉复核，确认使用与 M3/M4 相同的稳定测试集指纹
+- [ ] LanQvJian 完成统一接口和 Web/API 联调
+- [ ] 组合分支通过契约检查、完整测试和端到端预测后再合入 `main`
 
 ## 风险与应对
 
