@@ -2,7 +2,7 @@
 
 版本：v1.0.1
 首次生效：2026-09-21
-本版生效：待 HuMingChang 与 HongSenYuan 确认
+本版生效：2026-09-21（HuMingChang、HongSenYuan 已确认）
 维护人：LanQvJian
 
 ## 变更记录
@@ -465,11 +465,12 @@ python scripts/verify_model_contract.py models/<model_name>
 
 ## 五、生效确认
 
-本契约由 LanQvJian 起草，**需经 HuMingChang 与 HongSenYuan 确认后正式生效**。
-确认前如对任何条款有异议，应立即提出并记录在 `reports/meeting-notes/`。
+本契约由 LanQvJian 起草。v1.0.1 已经 HuMingChang 与 HongSenYuan 确认，于
+2026-09-21 正式生效；后续如对条款有异议，应立即提出并记录在
+`reports/meeting-notes/`。
 
 | 成员 | 确认状态 | 日期 |
 | --- | --- | --- |
 | LanQvJian | 已确认（起草人） | 2026-09-21 |
-| HuMingChang | 待确认 | |
-| HongSenYuan | 已确认（附 6 项确认后待办，见 `reports/meeting-notes/2026-09-21-contract-confirmation-hongsenyuan.md`） | 2026-09-21 |
+| HuMingChang | 已确认 v1.0.1（见 `reports/meeting-notes/2026-09-21-contract-confirmation-v1.0.1-humingchang.md`） | 2026-09-21 |
+| HongSenYuan | 已确认 v1.0.1；v1.0 的 6 项确认后待办继续有效（见 `reports/meeting-notes/2026-09-21-contract-confirmation-hongsenyuan.md`） | 2026-09-21 |

@@ -2,7 +2,7 @@
 
 日期：2026-09-21
 提出人：LanQvJian
-状态：**待 HuMingChang 与 HongSenYuan 确认后生效**
+状态：**HuMingChang 与 HongSenYuan 已确认，v1.0.1 已生效**
 依据：`docs/contracts.md` §0 变更流程第 1–4 条
 
 ## 〇、为什么是 v1.0.1 而不是 v1.1
@@ -99,5 +99,5 @@ python scripts/verify_model_contract.py models/<model_name>
 | 成员 | 确认状态 | 日期 |
 | --- | --- | --- |
 | LanQvJian | 已确认（提出人） | 2026-09-21 |
-| HuMingChang | 待确认 | |
-| HongSenYuan | 待确认 | |
+| HuMingChang | 已确认（见 `2026-09-21-contract-confirmation-v1.0.1-humingchang.md`） | 2026-09-21 |
+| HongSenYuan | 已确认 | 2026-09-21 |
