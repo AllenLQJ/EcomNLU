@@ -716,5 +716,75 @@ class TrainedModelArtifactTests(unittest.TestCase):
                     self.assertEqual(label, max(item, key=item.get))
 
 
+class PredictScriptTests(unittest.TestCase):
+    """三个预测封装脚本与服务端约定的守卫测试。
+
+    三个 ``scripts/predict_<model>.py`` 是 ``scripts/predict.py`` 的薄封装，
+    各自把一个模型名写死为常量。若将来有人改了模型目录名（或契约允许的
+    ``model_name`` 取值）却没同步这些脚本，运行时会直接报「模型目录不存在」，
+    而这类错误若在演示现场才发现，代价很高，因此在这里用测试提前拦住。
+    """
+
+    WRAPPERS = {
+        "predict_logreg": "tfidf_logreg",
+        "predict_svm": "tfidf_svm",
+        "predict_rf": "tfidf_rf",
+    }
+
+    def test_wrappers_pin_the_expected_model_dirs(self) -> None:
+        """每个封装脚本固定的模型目录必须与契约允许的 model_name 对应。"""
+        import importlib
+
+        for module_name, expected_model in self.WRAPPERS.items():
+            with self.subTest(script=module_name):
+                module = importlib.import_module(f"scripts.{module_name}")
+                self.assertEqual(module.MODEL_DIR, f"models/{expected_model}")
+                self.assertIn(expected_model, MODEL_NAMES)
+
+    def test_shared_entry_accepts_a_default_model(self) -> None:
+        """共享入口必须接受 ``default_model``，否则封装脚本无法复用。
+
+        这是「一份实现 + 三个薄封装」这一设计的关键接口；
+        若签名被改掉，三个脚本会当场失效。
+        """
+        import inspect
+
+        from scripts.predict import main
+
+        signature = inspect.signature(main)
+        self.assertIn("default_model", signature.parameters)
+        self.assertIsNone(signature.parameters["default_model"].default)
+
+    def test_relative_model_paths_resolve_against_project_root(self) -> None:
+        """相对模型路径必须按项目根目录解析，使脚本可在任意工作目录运行。"""
+        from scripts.predict import resolve_model_dir
+
+        config = load_config()
+        resolved = resolve_model_dir(config, "models/tfidf_svm")
+        self.assertTrue(resolved.is_absolute())
+        self.assertEqual(resolved, project_path("models/tfidf_svm"))
+
+    def test_missing_model_dir_raises_a_clear_error(self) -> None:
+        """不存在的模型目录必须报错并给出路径，而不是静默回退到别的模型。"""
+        from scripts.predict import resolve_model_dir
+
+        config = load_config()
+        with self.assertRaises(FileNotFoundError) as context:
+            resolve_model_dir(config, "models/not_a_real_model")
+        self.assertIn("not_a_real_model", str(context.exception))
+
+    def test_every_wrapper_has_a_matching_trained_model(self) -> None:
+        """每个封装脚本指向的模型都应已训练；未训练时跳过。"""
+        models_dir = project_path("models")
+        if not models_dir.is_dir():
+            self.skipTest("models/ 不存在，尚未训练基线模型")
+        for module_name, expected_model in self.WRAPPERS.items():
+            with self.subTest(script=module_name):
+                model_dir = models_dir / expected_model
+                if not (model_dir / "metadata.json").is_file():
+                    self.skipTest(f"{expected_model} 尚未训练")
+                self.assertTrue((model_dir / "metrics.json").is_file())
+
+
 if __name__ == "__main__":
     unittest.main()

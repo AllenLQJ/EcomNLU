@@ -151,6 +151,49 @@ python scripts/verify_model_contract.py
 模型文件较大（合计约 1.05 GB），已被 `.gitignore` 排除，不进入版本库；
 首次使用需运行上述训练命令或向队友索取。
 
+## 预测与打分
+
+三个模型各有一个独立脚本，功能完全一致，只是默认模型不同
+（都是 `scripts/predict.py` 的薄封装，共用同一份实现）：
+
+| 脚本 | 默认模型 |
+| --- | --- |
+| `scripts/predict_logreg.py` | `models/tfidf_logreg` |
+| `scripts/predict_svm.py` | `models/tfidf_svm`（M3 选定的最优传统模型） |
+| `scripts/predict_rf.py` | `models/tfidf_rf` |
+
+单条评论预测，返回类别、置信度与 Top-K 概率：
+
+```powershell
+python scripts/predict_svm.py --text "这本书内容不错，作者水平很高，值得一读"
+python scripts/predict_svm.py --text "手机很好用，电池耐用" --top-k 5
+```
+
+批量预测（CSV 中的一列评论）：
+
+```powershell
+python scripts/predict_svm.py --file reviews.csv --text-column review --limit 20
+```
+
+对某个划分跑评估分数（Macro-F1、Accuracy、逐类别指标；可存 JSON）：
+
+```powershell
+python scripts/predict_svm.py --eval test
+python scripts/predict_svm.py --eval dev --output reports/score-svm-dev.json
+```
+
+三个脚本都支持 `--model` 临时覆盖默认模型，例如
+`python scripts/predict_logreg.py --model models/tfidf_svm --text "..."`。
+
+预测传入的是**原始评论文本**，清洗与分词由模型目录内的 `vectorizer.joblib`
+在内部完成，因此不需要预先清洗。脚本本身不实现任何推理逻辑，
+全部走 `src.inference.load_predictor`——也就是 M6 的 Web 服务将要调用的同一入口，
+所以命令行与页面的分数必然一致。
+
+> 已知失败模式：模型对**明确提到「手机」的短评论**可能高置信度判为「平板」。
+> 原因是训练数据中「手机」出现在平板评论里的绝对次数多于手机评论（1,085 : 499），
+> 词袋模型无法区分「手机很好用」与「比手机屏幕大」。详见对比报告第 6 节。
+
 ## 运行环境
 
 M2 数据流水线的已验证环境为 conda 环境 `AI`（Python 3.11.15）。
