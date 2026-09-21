@@ -36,3 +36,9 @@ evaluation:
     - macro_recall
     - macro_f1
     - weighted_f1
+
+api:
+  # 单条评论长度上限（字符）。超过返回 REVIEW_TOO_LONG，不静默截断。
+  # 本数据集评论 p99 为 374 字符、最长 2876 字符，取 2000 可覆盖绝大多数真实输入，
+  # 同时保留一个可现场演示的超长输入拒绝路径。
+  max_review_chars: 2000

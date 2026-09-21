@@ -1,0 +1,499 @@
+"""校验 ``models/<model_name>/`` 是否符合 ``docs/contracts.md`` 中的模型产物契约。
+
+只读校验，不修改任何文件。存在任何一项失败时以非零退出码结束。
+
+结构类检查（文件、字段、标签顺序、指标形状）始终执行；真实推理检查依赖
+``src/inference/`` 中尚未实现的 ``load_predictor``，未实现时该项标记为 SKIP，
+不会被当作通过。
+
+用法::
+
+    python scripts/verify_model_contract.py models/tfidf_logreg
+    python scripts/verify_model_contract.py models/tfidf_logreg models/bert_base_chinese
+    python scripts/verify_model_contract.py            # 校验 models/ 下全部模型
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import importlib
+import json
+import math
+import numbers
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_MODELS_DIR = PROJECT_ROOT / "models"
+DEFAULT_PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
+
+REQUIRED_JSON_FILES = ("label_mapping.json", "metadata.json", "metrics.json")
+METADATA_REQUIRED_KEYS = (
+    "model_name",
+    "task",
+    "framework",
+    "framework_version",
+    "created_at",
+    "random_seed",
+    "split_manifest_sha256",
+    "train_rows",
+    "hyperparameters",
+    "max_length",
+    "device",
+)
+ALLOWED_TASKS = ("category_classification", "sentiment_classification")
+METRICS_BLOCK_KEYS = (
+    "accuracy",
+    "macro_precision",
+    "macro_recall",
+    "macro_f1",
+    "weighted_f1",
+    "per_class",
+    "confusion_matrix",
+)
+COST_KEYS = (
+    "model_size_bytes",
+    "single_sample_latency_ms",
+    "batch_32_latency_ms",
+    "throughput_per_sec",
+    "measured_on",
+    "measured_at",
+)
+
+# framework -> 必需的模型本体文件（文件或目录）
+MODEL_BODY_REQUIREMENTS: dict[str, tuple[str, ...]] = {
+    "scikit-learn": ("model.joblib", "vectorizer.joblib"),
+    "fasttext": ("model.bin",),
+    "transformers": ("model", "tokenizer"),
+}
+
+PROBE_TEXTS = ("手机很好用，电池耐用", "这本书内容不错，值得一读")
+
+
+@dataclass
+class CheckResult:
+    """单项校验结果。``status`` 取值：ok / fail / skip。"""
+
+    name: str
+    status: str
+    detail: str = ""
+
+
+def sha256_of(path: Path) -> str:
+    """计算文件 SHA-256。"""
+    digest = hashlib.sha256()
+    with path.open("rb") as file_obj:
+        for chunk in iter(lambda: file_obj.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def find_placeholders(node: Any, path: str = "") -> list[str]:
+    """递归查找形如 ``<...>`` 的未替换占位符。"""
+    found: list[str] = []
+    if isinstance(node, dict):
+        for key, value in node.items():
+            found.extend(find_placeholders(value, f"{path}.{key}" if path else str(key)))
+    elif isinstance(node, list):
+        for index, value in enumerate(node):
+            found.extend(find_placeholders(value, f"{path}[{index}]"))
+    elif isinstance(node, str) and node.startswith("<") and node.endswith(">"):
+        found.append(f"{path} = {node}")
+    return found
+
+
+def prediction_problems(
+    probas: Any, labels: Any, expected_categories: list[str]
+) -> list[str]:
+    """校验统一推理接口的返回值，返回所有发现的问题。"""
+    problems: list[str] = []
+    expected_count = len(PROBE_TEXTS)
+    if not isinstance(probas, list):
+        return ["predict_proba 返回值必须是 list"]
+    if not isinstance(labels, list):
+        return ["predict 返回值必须是 list"]
+    if len(probas) != expected_count:
+        problems.append(f"predict_proba 返回 {len(probas)} 条，期望 {expected_count} 条")
+    if len(labels) != expected_count:
+        problems.append(f"predict 返回 {len(labels)} 条，期望 {expected_count} 条")
+
+    for index, item in enumerate(probas):
+        if not isinstance(item, dict):
+            problems.append(f"第 {index} 条概率不是字典")
+            continue
+        if set(item) != set(expected_categories):
+            problems.append(f"第 {index} 条未覆盖全部 10 个类别")
+            continue
+
+        invalid_values = [
+            f"{category}={value!r}"
+            for category, value in item.items()
+            if isinstance(value, bool)
+            or not isinstance(value, numbers.Real)
+            or not math.isfinite(float(value))
+            or not 0.0 <= float(value) <= 1.0
+        ]
+        if invalid_values:
+            problems.append(f"第 {index} 条含非法概率：{invalid_values[:3]}")
+            continue
+
+        probability_sum = sum(float(value) for value in item.values())
+        if abs(probability_sum - 1.0) > 1e-3:
+            problems.append(f"第 {index} 条概率和不为 1（{probability_sum:.4f}）")
+            continue
+
+        if index < len(labels):
+            predicted_label = labels[index]
+            highest_probability = max(float(value) for value in item.values())
+            predicted_probability = (
+                float(item[predicted_label]) if predicted_label in item else float("-inf")
+            )
+            if not math.isclose(
+                predicted_probability, highest_probability, rel_tol=0.0, abs_tol=1e-12
+            ):
+                problems.append(
+                    f"第 {index} 条 predict={predicted_label!r} 不是最高概率类别"
+                )
+
+    for index, label in enumerate(labels):
+        if label not in expected_categories:
+            problems.append(f"第 {index} 条预测 {label!r} 不在类别集合内")
+    return problems
+
+
+class ModelContractValidator:
+    """按模型产物契约校验单个模型目录。"""
+
+    def __init__(self, model_dir: Path, processed_dir: Path) -> None:
+        self.model_dir = model_dir
+        self.processed_dir = processed_dir
+        self.checks: list[CheckResult] = []
+        self.label_mapping: dict[str, Any] | None = None
+
+    def record(self, name: str, status: str, detail: str = "") -> bool:
+        """记录一项校验结果。"""
+        self.checks.append(CheckResult(name, status, detail))
+        return status == "ok"
+
+    def load_json(self, filename: str) -> dict[str, Any] | None:
+        """读取模型目录下的 JSON 文件。"""
+        path = self.model_dir / filename
+        try:
+            with path.open("r", encoding="utf-8") as file_obj:
+                return json.load(file_obj)
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            self.record(f"{filename} 可解析", "fail", f"{type(exc).__name__}: {exc}")
+        return None
+
+    # ---------------------------------------------------------------- 校验流程
+
+    def run(self) -> list[CheckResult]:
+        """执行全部校验。"""
+        if not self.record(
+            "模型目录存在",
+            "ok" if self.model_dir.is_dir() else "fail",
+            "" if self.model_dir.is_dir() else f"目录不存在：{self.model_dir}",
+        ):
+            return self.checks
+
+        missing = [name for name in REQUIRED_JSON_FILES if not (self.model_dir / name).is_file()]
+        if not self.record(
+            "必需 JSON 文件齐全",
+            "fail" if missing else "ok",
+            f"缺少：{missing}" if missing else "",
+        ):
+            return self.checks
+
+        self.label_mapping = self.load_json("label_mapping.json")
+        metadata = self.load_json("metadata.json")
+        metrics = self.load_json("metrics.json")
+
+        self.check_label_mapping()
+        if metadata is not None:
+            self.check_metadata(metadata)
+            self.check_model_body(metadata)
+        if metrics is not None:
+            self.check_metrics(metrics)
+        self.check_inference()
+        return self.checks
+
+    # ---------------------------------------------------------------- 各项校验
+
+    def check_label_mapping(self) -> None:
+        """确认 label_mapping.json 与数据契约中的那份逐字节相同。"""
+        reference = self.processed_dir / "label_mapping.json"
+        if not reference.is_file():
+            self.record(
+                "label_mapping 与数据契约一致",
+                "skip",
+                f"基准文件不存在：{reference}（需先完成 M2）",
+            )
+            return
+        actual_bytes = (self.model_dir / "label_mapping.json").read_bytes()
+        reference_bytes = reference.read_bytes()
+        self.record(
+            "label_mapping 与数据契约逐字节一致",
+            "ok" if actual_bytes == reference_bytes else "fail",
+            ""
+            if actual_bytes == reference_bytes
+            else "内容不同，必须直接复制 data/processed/label_mapping.json，不得重新生成",
+        )
+
+    def check_metadata(self, metadata: dict[str, Any]) -> None:
+        """校验 metadata.json 的字段与 split 指纹。"""
+        missing = [key for key in METADATA_REQUIRED_KEYS if key not in metadata]
+        self.record(
+            "metadata 必需字段齐全",
+            "fail" if missing else "ok",
+            f"缺少：{missing}" if missing else "",
+        )
+
+        placeholders = find_placeholders(metadata)
+        self.record(
+            "metadata 无残留占位符",
+            "fail" if placeholders else "ok",
+            f"仍为占位符：{placeholders[:5]}" if placeholders else "",
+        )
+
+        task = metadata.get("task")
+        self.record(
+            "metadata.task 合法",
+            "ok" if task in ALLOWED_TASKS else "fail",
+            "" if task in ALLOWED_TASKS else f"实际为 {task!r}，允许 {ALLOWED_TASKS}",
+        )
+
+        # max_length：BERT 类模型必须填实际值，其余必须为 null
+        framework = metadata.get("framework")
+        max_length = metadata.get("max_length")
+        if framework == "transformers":
+            valid = isinstance(max_length, int) and max_length > 0
+            detail = "" if valid else f"transformers 模型必须填写正整数 max_length，实际为 {max_length!r}"
+        else:
+            valid = max_length is None
+            detail = "" if valid else f"非 transformers 模型的 max_length 必须为 null，实际为 {max_length!r}"
+        self.record("metadata.max_length 符合模型类型", "ok" if valid else "fail", detail)
+
+        manifest = self.processed_dir / "split_manifest.json"
+        if not manifest.is_file():
+            self.record(
+                "split 指纹与当前数据一致",
+                "skip",
+                f"基准文件不存在：{manifest}（需先完成 M2）",
+            )
+            return
+        actual = sha256_of(manifest)
+        claimed = metadata.get("split_manifest_sha256")
+        self.record(
+            "split 指纹与当前数据一致",
+            "ok" if claimed == actual else "fail",
+            ""
+            if claimed == actual
+            else f"metadata={claimed}，当前 split_manifest={actual}；该模型可能是在旧数据上训练的",
+        )
+
+    def check_model_body(self, metadata: dict[str, Any]) -> None:
+        """按 framework 确认模型本体文件存在。"""
+        framework = metadata.get("framework")
+        required = MODEL_BODY_REQUIREMENTS.get(framework)
+        if required is None:
+            self.record(
+                "模型本体文件齐全",
+                "fail",
+                f"未知 framework {framework!r}，允许 {sorted(MODEL_BODY_REQUIREMENTS)}",
+            )
+            return
+        missing = [name for name in required if not (self.model_dir / name).exists()]
+        self.record(
+            "模型本体文件齐全",
+            "fail" if missing else "ok",
+            f"framework={framework} 缺少：{missing}" if missing else f"framework={framework}",
+        )
+
+    def check_metrics_block(self, name: str, block: Any, categories: list[str]) -> list[str]:
+        """校验 dev / test 指标块，返回问题列表。"""
+        if block is None:
+            if name == "dev":
+                return ["dev 不得为 null（验证集指标必须先产出）"]
+            return []
+
+        problems = []
+        if not isinstance(block, dict):
+            return [f"{name} 不是对象"]
+
+        missing = [key for key in METRICS_BLOCK_KEYS if key not in block]
+        if missing:
+            problems.append(f"{name} 缺少字段 {missing}")
+            return problems
+
+        per_class = block["per_class"]
+        if not isinstance(per_class, dict) or set(per_class) != set(categories):
+            problems.append(f"{name}.per_class 的类别与 categories 不一致")
+
+        matrix = block["confusion_matrix"]
+        size = len(categories)
+        if not isinstance(matrix, list) or len(matrix) != size:
+            problems.append(f"{name}.confusion_matrix 应为 {size}×{size} 二维数组")
+        elif any(not isinstance(row, list) or len(row) != size for row in matrix):
+            problems.append(f"{name}.confusion_matrix 每行长度应为 {size}")
+        return problems
+
+    def check_metrics(self, metrics: dict[str, Any]) -> None:
+        """校验 metrics.json 的结构、类别顺序与测试集纪律。"""
+        for key in ("model_name", "categories", "dev", "test", "cost"):
+            if key not in metrics:
+                self.record("metrics 必需字段齐全", "fail", f"缺少 {key}")
+                return
+        self.record("metrics 必需字段齐全", "ok")
+
+        placeholders = find_placeholders(metrics)
+        self.record(
+            "metrics 无残留占位符",
+            "fail" if placeholders else "ok",
+            f"仍为占位符：{placeholders[:5]}" if placeholders else "",
+        )
+
+        categories = metrics["categories"]
+        expected = (self.label_mapping or {}).get("categories")
+        self.record(
+            "metrics.categories 与 label_mapping 一致",
+            "ok" if categories == expected else "fail",
+            "" if categories == expected else f"metrics={categories}，label_mapping={expected}",
+        )
+
+        problems = self.check_metrics_block("dev", metrics["dev"], categories)
+        problems.extend(self.check_metrics_block("test", metrics["test"], categories))
+        self.record("dev / test 指标结构合法", "fail" if problems else "ok", "；".join(problems))
+
+        cost = metrics["cost"]
+        if not isinstance(cost, dict):
+            self.record("cost 字段齐全", "fail", "cost 不是对象")
+        else:
+            missing = [key for key in COST_KEYS if key not in cost]
+            self.record(
+                "cost 字段齐全",
+                "fail" if missing else "ok",
+                f"缺少：{missing}" if missing else "",
+            )
+
+    def check_inference(self) -> None:
+        """通过统一入口加载模型并执行真实推理。"""
+        if str(PROJECT_ROOT) not in sys.path:
+            sys.path.insert(0, str(PROJECT_ROOT))
+        try:
+            inference_module = importlib.import_module("src.inference")
+        except Exception as exc:
+            self.record(
+                "统一入口可加载并推理",
+                "fail",
+                f"src.inference 导入失败（{type(exc).__name__}: {exc}）",
+            )
+            return
+
+        load_predictor = getattr(inference_module, "load_predictor", None)
+        if load_predictor is None:
+            self.record(
+                "统一入口可加载并推理",
+                "skip",
+                "src.inference.load_predictor 尚未实现（需先完成 M6）",
+            )
+            return
+        if not callable(load_predictor):
+            self.record(
+                "统一入口可加载并推理",
+                "fail",
+                "src.inference.load_predictor 存在但不可调用",
+            )
+            return
+
+        try:
+            predictor = load_predictor(self.model_dir)
+        except Exception as exc:
+            self.record("统一入口可加载并推理", "fail", f"加载失败：{type(exc).__name__}: {exc}")
+            return
+
+        expected_categories = (self.label_mapping or {}).get("categories")
+        if not expected_categories:
+            self.record("统一入口可加载并推理", "skip", "缺少 label_mapping，无法判定类别集合")
+            return
+
+        try:
+            probas = predictor.predict_proba(list(PROBE_TEXTS))
+            labels = predictor.predict(list(PROBE_TEXTS))
+        except Exception as exc:
+            self.record("统一入口可加载并推理", "fail", f"推理失败：{type(exc).__name__}: {exc}")
+            return
+
+        problems = prediction_problems(probas, labels, expected_categories)
+
+        self.record(
+            "统一入口可加载并推理",
+            "fail" if problems else "ok",
+            "；".join(problems) if problems else f"已对 {len(PROBE_TEXTS)} 条探针文本完成推理",
+        )
+
+
+def discover_models(models_dir: Path) -> list[Path]:
+    """列出 ``models/`` 下所有含 metadata.json 的子目录。"""
+    if not models_dir.is_dir():
+        return []
+    return sorted(
+        path for path in models_dir.iterdir() if path.is_dir() and (path / "metadata.json").is_file()
+    )
+
+
+def render(model_dir: Path, results: list[CheckResult]) -> tuple[str, int]:
+    """渲染单个模型的校验结果，返回文本与失败项数。"""
+    relative = model_dir.relative_to(PROJECT_ROOT).as_posix() if model_dir.is_relative_to(PROJECT_ROOT) else str(model_dir)
+    lines = ["", "-" * 68, f"模型契约校验：{relative}", "-" * 68]
+    markers = {"ok": "[OK]  ", "fail": "[FAIL]", "skip": "[SKIP]"}
+    for result in results:
+        lines.append(f"{markers[result.status]} {result.name}")
+        if result.detail:
+            lines.append(f"       {result.detail}")
+    failed = sum(1 for result in results if result.status == "fail")
+    skipped = sum(1 for result in results if result.status == "skip")
+    lines.append(
+        f"通过 {len(results) - failed - skipped} 项，失败 {failed} 项，跳过 {skipped} 项"
+    )
+    return "\n".join(lines), failed
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """解析命令行参数。"""
+    parser = argparse.ArgumentParser(description="校验模型产物是否符合模型契约")
+    parser.add_argument("model_dirs", nargs="*", type=Path, help="模型目录，省略时校验 models/ 下全部")
+    parser.add_argument(
+        "--processed-dir", type=Path, default=DEFAULT_PROCESSED_DIR, help="处理后数据目录"
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    """脚本入口。"""
+    args = parse_args(argv)
+    model_dirs = args.model_dirs or discover_models(DEFAULT_MODELS_DIR)
+    if not model_dirs:
+        print("未找到任何模型目录（models/ 下没有含 metadata.json 的子目录）。")
+        return 1
+
+    total_failed = 0
+    for model_dir in model_dirs:
+        validator = ModelContractValidator(model_dir, args.processed_dir)
+        text, failed = render(model_dir, validator.run())
+        print(text)
+        total_failed += failed
+
+    print("=" * 68)
+    if total_failed:
+        print(f"结论：{total_failed} 项校验失败，相关模型不得用于部署或对比。")
+        return 1
+    print("结论：模型契约校验通过。")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

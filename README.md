@@ -81,6 +81,13 @@ data/raw/online_shopping_10_cats.csv
 python -m unittest discover -s tests -v
 ```
 
+## API 接口约定
+
+Web 服务的统一接口、请求字段、响应结构和错误码见
+[docs/contracts.md](docs/contracts.md)。单条评论的默认长度上限为 **2000 字符**，
+由 `configs/base.yaml` 中的 `api.max_review_chars` 统一配置；超限请求返回
+`REVIEW_TOO_LONG`，不会静默截断。
+
 ## 团队
 
 - LanQvJian：项目统筹、工程集成、Web 部署与答辩组织
