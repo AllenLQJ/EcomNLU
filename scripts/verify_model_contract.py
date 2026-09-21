@@ -32,6 +32,7 @@ DEFAULT_MODELS_DIR = PROJECT_ROOT / "models"
 DEFAULT_PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
 
 REQUIRED_JSON_FILES = ("label_mapping.json", "metadata.json", "metrics.json")
+SPLIT_FILES = ("train.csv", "dev.csv", "test.csv")
 METADATA_REQUIRED_KEYS = (
     "model_name",
     "task",
@@ -39,7 +40,7 @@ METADATA_REQUIRED_KEYS = (
     "framework_version",
     "created_at",
     "random_seed",
-    "split_manifest_sha256",
+    "dataset_fingerprint",
     "train_rows",
     "hyperparameters",
     "max_length",
@@ -90,6 +91,22 @@ def sha256_of(path: Path) -> str:
         for chunk in iter(lambda: file_obj.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def compute_dataset_fingerprint(processed_dir: Path) -> str | None:
+    """按契约 §2.3 计算数据集指纹；划分文件不全时返回 ``None``。
+
+    指纹由 train/dev/test 三个 CSV 的**文件内容**决定，顺序固定为 train:dev:test。
+    刻意不采用 ``split_manifest.json`` 的整体哈希——该文件含每次运行都会变化的
+    ``created_at``，会让同一份数据产生不同指纹（v1.0 的缺陷，见 reports/m3-validation.md）。
+    """
+    parts = []
+    for name in SPLIT_FILES:
+        path = processed_dir / name
+        if not path.is_file():
+            return None
+        parts.append(sha256_of(path))
+    return hashlib.sha256(":".join(parts).encode("utf-8")).hexdigest()
 
 
 def find_placeholders(node: Any, path: str = "") -> list[str]:
@@ -244,7 +261,7 @@ class ModelContractValidator:
         )
 
     def check_metadata(self, metadata: dict[str, Any]) -> None:
-        """校验 metadata.json 的字段与 split 指纹。"""
+        """校验 metadata.json 的字段与数据集指纹。"""
         missing = [key for key in METADATA_REQUIRED_KEYS if key not in metadata]
         self.record(
             "metadata 必需字段齐全",
@@ -277,22 +294,24 @@ class ModelContractValidator:
             detail = "" if valid else f"非 transformers 模型的 max_length 必须为 null，实际为 {max_length!r}"
         self.record("metadata.max_length 符合模型类型", "ok" if valid else "fail", detail)
 
-        manifest = self.processed_dir / "split_manifest.json"
-        if not manifest.is_file():
+        actual = compute_dataset_fingerprint(self.processed_dir)
+        if actual is None:
+            missing = [
+                name for name in SPLIT_FILES if not (self.processed_dir / name).is_file()
+            ]
             self.record(
-                "split 指纹与当前数据一致",
+                "数据集指纹与当前数据一致",
                 "skip",
-                f"基准文件不存在：{manifest}（需先完成 M2）",
+                f"data/processed 尚不完整，缺少 {missing}（需先完成 M2）",
             )
             return
-        actual = sha256_of(manifest)
-        claimed = metadata.get("split_manifest_sha256")
+        claimed = metadata.get("dataset_fingerprint")
         self.record(
-            "split 指纹与当前数据一致",
+            "数据集指纹与当前数据一致",
             "ok" if claimed == actual else "fail",
             ""
             if claimed == actual
-            else f"metadata={claimed}，当前 split_manifest={actual}；该模型可能是在旧数据上训练的",
+            else f"metadata={claimed}，当前数据={actual}；该模型可能是用别的数据训练的",
         )
 
     def check_model_body(self, metadata: dict[str, Any]) -> None:
