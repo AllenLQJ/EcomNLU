@@ -48,7 +48,8 @@
       组长的 `scripts/verify_data_contract.py` 校验 **19 项通过、0 项失败、0 项跳过**
 
 证据与复现命令见 `reports/daily-reports/2026-09-21-HuMingChang.md`。
-自动化检查：`python -m unittest discover -s tests -v` → 45 项测试全部通过。
+自动化检查：`python -m unittest discover -s tests -v` → **51 项测试全部通过**
+（数据流水线 42 项 + 项目结构 3 项 + 契约校验器 6 项；与契约分支合并后统计）。
 
 待非作者成员复核（满足计划中「待验收」条件）：
 
