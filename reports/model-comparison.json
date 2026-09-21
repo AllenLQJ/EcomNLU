@@ -1,0 +1,69 @@
+{
+  "models": [
+    {
+      "model_dir": "D:\\pythonProject\\pythonProject\\ecommerce-text-classification\\models\\bert_base_chinese",
+      "name": "bert_base_chinese",
+      "dev_macro_f1": 0.912276,
+      "dev_accuracy": 0.920784,
+      "test_macro_f1": 0.913847,
+      "test_accuracy": 0.919324,
+      "size_bytes": 409126369,
+      "single_sample_latency_ms": 183.803,
+      "batch_32_latency_ms": 8191.777,
+      "throughput_per_sec": 3.9,
+      "measured_on": "cpu"
+    },
+    {
+      "model_dir": "D:\\pythonProject\\pythonProject\\ecommerce-text-classification\\models\\fasttext_char",
+      "name": "fasttext_char",
+      "dev_macro_f1": 0.817183,
+      "dev_accuracy": 0.857188,
+      "test_macro_f1": 0.83779,
+      "test_accuracy": 0.870217,
+      "size_bytes": 1959328,
+      "single_sample_latency_ms": 0.103,
+      "batch_32_latency_ms": 5.934,
+      "throughput_per_sec": 5393.0,
+      "measured_on": "cpu"
+    },
+    {
+      "model_dir": "D:\\pythonProject\\pythonProject\\ecommerce-text-classification\\models\\fasttext_char_tuned",
+      "name": "fasttext_char_tuned",
+      "dev_macro_f1": 0.854623,
+      "dev_accuracy": 0.875677,
+      "test_macro_f1": 0.853912,
+      "test_accuracy": 0.874681,
+      "size_bytes": 3781024,
+      "single_sample_latency_ms": 0.035,
+      "batch_32_latency_ms": 1.827,
+      "throughput_per_sec": 17517.9,
+      "measured_on": "cpu"
+    },
+    {
+      "model_dir": "D:\\pythonProject\\pythonProject\\ecommerce-text-classification\\models\\fasttext_word",
+      "name": "fasttext_word",
+      "dev_macro_f1": 0.843103,
+      "dev_accuracy": 0.875677,
+      "test_macro_f1": 0.847827,
+      "test_accuracy": 0.879464,
+      "size_bytes": 25540723,
+      "single_sample_latency_ms": 0.211,
+      "batch_32_latency_ms": 17.461,
+      "throughput_per_sec": 1832.6,
+      "measured_on": "cpu"
+    },
+    {
+      "model_dir": "D:\\pythonProject\\pythonProject\\ecommerce-text-classification\\models\\fasttext_word_tuned",
+      "name": "fasttext_word_tuned",
+      "dev_macro_f1": 0.860716,
+      "dev_accuracy": 0.879662,
+      "test_macro_f1": 0.865512,
+      "test_accuracy": 0.882972,
+      "size_bytes": 49069171,
+      "single_sample_latency_ms": 0.209,
+      "batch_32_latency_ms": 16.692,
+      "throughput_per_sec": 1917.1,
+      "measured_on": "cpu"
+    }
+  ]
+}

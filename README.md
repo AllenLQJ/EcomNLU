@@ -13,16 +13,18 @@
 ## 当前进度
 
 - [x] M1：项目初始化
-- [x] M2：数据清洗、分层划分与 EDA
-- [x] M3：TF-IDF 特征、线性基线与随机森林对比
-- [ ] M4：FastText 与 BERT（进行中，等待负责人推送远端分支）
+- [x] M2：数据清洗、分层划分与 EDA（待团队复核，见 `docs/development-plan.md`）
+- [x] M3：TF-IDF 特征、线性基线与随机森林对比（待团队复核）
+- [x] M4：FastText 与 BERT（统一对比、错误分析与主部署模型决策已完成）
 - [ ] M5：模型优化与情感分析扩展
-- [ ] M6：Web 部署与答辩材料（进行中，API 骨架已通过 19 项测试）
+- [ ] M6：Web 部署与答辩材料（进行中，预测 API 已并入本分支）
 
 M2 已产出可复现的数据闭环：原始 62,774 条 → 清洗后 62,752 条，
 按类别分层划分为 50,206 / 6,274 / 6,272，跨集合重复文本为 0。
 M3 已产出三个传统模型基线，选定 `tfidf_svm`（测试集 Macro-F1 = 0.8883）。
-模型训练与端到端预测的演示页面尚未完成。
+M4 已完成 4 个 FastText 变体与 1 个 BERT 中文微调模型，并依据验证集 Macro-F1
+选定主部署模型 `models/bert_base_chinese`（见 `reports/model-selection.md`）。
+模型训练与端到端预测的演示页面（M6）尚未完成。
 
 ## 项目周期
 
@@ -151,6 +153,63 @@ python scripts/verify_model_contract.py
 模型文件较大（合计约 1.05 GB），已被 `.gitignore` 排除，不进入版本库；
 首次使用需运行上述训练命令或向队友索取。
 
+## 高级模型（M4：FastText 与 BERT）
+
+M4 的两个模型族与 M3 基线使用同一套契约产物与统一评测入口，指标可以直接横向比较；
+选模依据同为**验证集 Macro-F1**（AGENTS.md §6）。
+
+### FastText
+
+```powershell
+# 语料生成 + 四个变体训练（字符级/词级 × 默认参数/自动调参）+ 验证集评测
+python scripts/train_fasttext.py --autotune-duration 120
+
+# 模型定稿后评测测试集
+python scripts/evaluate_model.py --model-dir models/fasttext_word_tuned --split test
+```
+
+训练文件按 AGENTS.md §5.3 逐行校验制表符、换行符、空文本与非法标签；
+推理时的切分方式记录在 `metadata.json` 的 `preprocess.tokenize`，由统一入口复用。
+
+### BERT 微调
+
+```powershell
+python scripts/fetch_pretrained.py bert-base-chinese   # 经镜像下载预训练权重到 models/pretrained/
+python scripts/train_bert.py --batch-size 32 --max-length 192 --epochs 3
+```
+
+`max_length` 由本数据集 token 长度分布实测确定（见 `reports/bert-token-lengths.json`），
+默认 192 对应 96.3% 覆盖率，**不是**照搬其它项目新闻标题任务的 32。
+训练超参、逐 epoch 曲线、`max_length` 依据与已知局限见 `reports/bert-training-report.md`。
+
+### 统一评测与对比
+
+所有模型都通过 `src.inference` 的统一入口评测，保证「离线评测口径 = 线上推理口径」：
+
+```powershell
+python scripts/evaluate_model.py --model-dir models/<model_name> --split test   # 单模型评测
+python scripts/evaluate_model.py --all --split dev                              # 全部模型评测
+python scripts/compare_models.py --error-analysis-model models/bert_base_chinese --split test
+python scripts/verify_model_contract.py models/<model_name>
+```
+
+`scripts/compare_models.py` 只读取各模型目录里真实写出的 `metrics.json`，本机缺少对应
+模型目录的模型族如实标注为「未提供」（例如没有 M3 的 `models/tfidf_*` 时）；同时输出
+错误分析报告（最易混淆类别对 + 高置信度错误样本 + 结论）。
+
+| 产物 | 路径 |
+| --- | --- |
+| FastText 模型 | `models/fasttext_{char,word}{,_tuned}/` |
+| BERT 微调模型 | `models/bert_base_chinese/` |
+| 训练报告 | `reports/fasttext-report.md`、`reports/bert-training-report.md` |
+| 对比与错误分析 | `reports/model-comparison.md`、`reports/error-analysis.md` |
+| 主部署模型决策 | `reports/model-selection.md` |
+
+**训练环境**：BERT 微调在 conda 环境 `bert_gpu`（Python 3.12.14、`torch 2.14.0+cu126`、
+NVIDIA RTX 4060 Laptop GPU、bf16 混合精度）上完成；FastText 训练与全部评测在项目 `venv`
+（`torch 2.14.0+cpu`）上完成。实际环境与设备记录在 `models/bert_base_chinese/metadata.json`
+的 `environment` 字段，`metrics.json` 的 `cost.measured_on` 标明延迟是在哪种设备上实测的。
+
 ## 预测与打分
 
 三个模型各有一个独立脚本，功能完全一致，只是默认模型不同
@@ -233,7 +292,23 @@ python -m src.web.app                                # 不带模型启动
 python -m src.web.app --model-dir models/tfidf_svm   # 加载指定模型
 ```
 
-模型目录也可用环境变量 `WEB_MODEL_DIR` 指定。
+模型目录按 **`--model-dir` 参数 > `WEB_MODEL_DIR` 环境变量 > `configs/base.yaml`
+的 `api.model_dir`** 顺序解析（见 `src/web/config.py`）。
+
+注意 `WEB_MODEL_DIR` 必须在**启动进程之前**设置。`src/web/app.py` 末尾的
+`app = create_app()` 在模块被导入时就完成配置解析，导入之后再设置环境变量不会生效：
+
+```powershell
+$env:WEB_MODEL_DIR = "models/bert_base_chinese"
+python -m src.web.app                      # 正确：变量先于进程
+```
+
+```powershell
+python -c "import os; os.environ['WEB_MODEL_DIR']='models/...'; import src.web.app"  # 错误：导入已发生
+```
+
+因此若在 Python 代码里（而非命令行）启动服务，请显式传参：
+`create_app(model_dir="models/bert_base_chinese")`。
 
 | 参数 | 默认值 | 说明 |
 | --- | --- | --- |
