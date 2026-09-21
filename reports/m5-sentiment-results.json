@@ -162,11 +162,11 @@
       },
       "cost": {
         "model_size_bytes": 18333938,
-        "single_sample_latency_ms": 0.494,
-        "batch_32_latency_ms": 7.154,
-        "throughput_per_sec": 4473.2,
+        "single_sample_latency_ms": 0.458,
+        "batch_32_latency_ms": 5.111,
+        "throughput_per_sec": 6261.0,
         "measured_on": "cpu",
-        "measured_at": "2026-09-21T20:24:51+08:00"
+        "measured_at": "2026-09-21T20:40:52+08:00"
       },
       "hyperparameters": {
         "C": 10.0
@@ -581,11 +581,11 @@
       },
       "cost": {
         "model_size_bytes": 24735890,
-        "single_sample_latency_ms": 1.638,
-        "batch_32_latency_ms": 7.895,
-        "throughput_per_sec": 4053.1,
+        "single_sample_latency_ms": 1.494,
+        "batch_32_latency_ms": 6.351,
+        "throughput_per_sec": 5038.3,
         "measured_on": "cpu",
-        "measured_at": "2026-09-21T20:24:58+08:00"
+        "measured_at": "2026-09-21T20:40:59+08:00"
       },
       "hyperparameters": {
         "C": 0.5
