@@ -431,4 +431,4 @@ python scripts/verify_model_contract.py models/<model_name>
 | --- | --- | --- |
 | LanQvJian | 已确认（起草人） | 2026-09-21 |
 | HuMingChang | 待确认 | |
-| HongSenYuan | 待确认 | |
+| HongSenYuan | 已确认（附 6 项确认后待办，见 `reports/meeting-notes/2026-09-21-contract-confirmation-hongsenyuan.md`） | 2026-09-21 |
