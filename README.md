@@ -50,7 +50,8 @@ M2 已产出可复现的数据闭环：原始 62,774 条 → 清洗后 62,752 �
 
 ## 环境准备
 
-团队验证使用的解释器为 **Python 3.12.14**（即仓库内的 `venv/`）。团队成员应统一解释器口径，并在数据质量报告与模型 `metadata.json` 的 `framework_version` / 运行环境字段中记录实际版本（AGENTS.md §7.2）。
+推荐使用 **Python 3.11**。各阶段必须在报告和模型元数据中记录实际
+解释器及依赖版本，不得把单个成员的本地环境当作全队已统一的环境。
 
 ```powershell
 python -m venv .venv
@@ -59,7 +60,8 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-`.venv/` 与 `venv/` 都被 `.gitignore` 忽略，按个人习惯任选其一即可，但团队以 `venv/` 的实际版本为准。
+`.venv/` 与 `venv/` 都被 `.gitignore` 忽略，可按个人习惯任选其一；
+是否可复现以受约束的 Python 版本、`requirements.txt` 和实际环境记录为准。
 
 `fasttext-wheel`、PyTorch 和 Transformers 将在对应模型阶段实际验证；M1 不代表这些模型已经成功训练。
 
@@ -118,9 +120,10 @@ python scripts/verify_data_contract.py
 
 ## 运行环境
 
-本项目统一使用 conda 环境 `AI`（Python 3.11.15）。该环境的实际依赖版本，
-以及与 `requirements.txt` 约束的比对结果，记录在
-[reports/environment.md](reports/environment.md) 中。
+M2 数据流水线的已验证环境为 conda 环境 `AI`（Python 3.11.15）。
+该记录仅说明 M2 的实际运行环境，不强制其他成员使用同一本地路径。
+实际依赖版本及与 `requirements.txt` 的偏差见
+[reports/environment.md](reports/environment.md)。
 
 ## 基础检查
 

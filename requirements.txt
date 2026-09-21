@@ -7,6 +7,8 @@ PyYAML>=6.0,<7.0
 matplotlib>=3.8,<4.0
 seaborn>=0.13,<1.0
 jieba>=0.42,<1.0
+wordcloud>=1.9,<2.0
+Pillow>=10,<13
 
 # Classical machine learning
 scikit-learn>=1.4,<2.0
