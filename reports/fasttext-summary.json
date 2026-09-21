@@ -1,0 +1,141 @@
+{
+  "variants": {
+    "fasttext_char": {
+      "mode": "chars",
+      "strategy": "default",
+      "train_seconds": 2.4,
+      "dev": {
+        "accuracy": 0.871533,
+        "macro_precision": 0.86121,
+        "macro_recall": 0.818737,
+        "macro_f1": 0.828997,
+        "weighted_f1": 0.869956
+      },
+      "model_dir": "D:\\pythonProject\\pythonProject\\ecommerce-text-classification\\models\\fasttext_char",
+      "test": {
+        "accuracy": 0.870217,
+        "macro_precision": 0.865921,
+        "macro_recall": 0.82559,
+        "macro_f1": 0.83779,
+        "weighted_f1": 0.868941
+      }
+    },
+    "fasttext_char_tuned": {
+      "mode": "chars",
+      "strategy": "autotune",
+      "train_seconds": 147.4,
+      "dev": {
+        "accuracy": 0.875677,
+        "macro_precision": 0.872523,
+        "macro_recall": 0.841752,
+        "macro_f1": 0.854623,
+        "weighted_f1": 0.87558
+      },
+      "model_dir": "D:\\pythonProject\\pythonProject\\ecommerce-text-classification\\models\\fasttext_char_tuned"
+    },
+    "fasttext_word": {
+      "mode": "words",
+      "strategy": "default",
+      "train_seconds": 1.7,
+      "dev": {
+        "accuracy": 0.875677,
+        "macro_precision": 0.894427,
+        "macro_recall": 0.828958,
+        "macro_f1": 0.843103,
+        "weighted_f1": 0.875421
+      },
+      "model_dir": "D:\\pythonProject\\pythonProject\\ecommerce-text-classification\\models\\fasttext_word",
+      "test": {
+        "accuracy": 0.879464,
+        "macro_precision": 0.891642,
+        "macro_recall": 0.835518,
+        "macro_f1": 0.847827,
+        "weighted_f1": 0.879289
+      }
+    },
+    "fasttext_word_tuned": {
+      "mode": "words",
+      "strategy": "autotune",
+      "train_seconds": 139.6,
+      "dev": {
+        "accuracy": 0.879662,
+        "macro_precision": 0.887607,
+        "macro_recall": 0.845056,
+        "macro_f1": 0.860716,
+        "weighted_f1": 0.879088
+      },
+      "model_dir": "D:\\pythonProject\\pythonProject\\ecommerce-text-classification\\models\\fasttext_word_tuned"
+    }
+  },
+  "corpora": {
+    "chars": {
+      "train_file": "D:\\pythonProject\\pythonProject\\ecommerce-text-classification\\models\\.fasttext_scratch\\train_chars.txt",
+      "dev_file": "D:\\pythonProject\\pythonProject\\ecommerce-text-classification\\models\\.fasttext_scratch\\dev_chars.txt",
+      "rows": {
+        "train": 50206,
+        "dev": 6274
+      },
+      "stats": {
+        "train": {
+          "total": 50206,
+          "written": 50206,
+          "skipped_empty": 0,
+          "skipped_invalid_label": 0,
+          "sanitized": 0
+        },
+        "dev": {
+          "total": 6274,
+          "written": 6274,
+          "skipped_empty": 0,
+          "skipped_invalid_label": 0,
+          "sanitized": 0
+        }
+      },
+      "sample_lines": [
+        "__label__书籍 做 父 母 一 定 要 有 刘 墉 这 样 的 心 态 ， 不 断 地 学 习 ， 不 断 地 进 步 ， 不 断 地 给 自 己 补 充 新 鲜 血 液 ， 让 自 己 保 持 一 颗 年 轻 的 心 。 我 想 ， 这 是 他 能 很 好 的 和 孩 子 沟 通 的 一 个 重 要 因 素 。 读 刘 墉 的 文 章 ， 总 能 让 我 看 到 一 个 快 乐 的 平 易 近 人 的 父 亲 ， 他 始 终 站 在 和 孩 子 同 样 的 高 度 ， 给 孩 子 创 造 着 一 个 充 满 爱 和 自 由 的 生 活 环 境 。 很 喜 欢 刘 墉 在 字 里 行 间 流 露 出 的 做 父 母 的 那 种 小 狡 黠 ， 让 人 总 是 忍 俊 不 禁 ， 父 母 和 子 女 之 间 有 时 候 也 是 一 种 战 斗 ， 武 力 争 斗 过 于 低 级 了 ， 智 力 较 量 才 更 有 趣 味 。 所 以 ， 做 父 母 的 得 加 把 劲 了 ， 老 思 想 老 观 念 注 定 会 一 败 涂 地 ， 生 命 不 息 ， 学 习 不 止 。 家 庭 教 育 ， 真 的 是 乐 在 其 中 。",
+        "__label__书籍 作 者 真 有 英 国 人 严 谨 的 风 格 ， 提 出 观 点 、 进 行 论 述 论 证 ， 尽 管 本 人 对 物 理 学 了 解 不 深 ， 但 是 仍 然 能 感 受 到 真 理 的 火 花 。 整 本 书 的 结 构 颇 有 特 点 ， 从 当 时 （ 本 书 写 于 八 十 年 代 ） 流 行 的 计 算 机 话 题 引 入 ， 再 用 数 学 、 物 理 学 、 宇 宙 学 做 必 要 的 铺 垫 — — 这 些 内 容 占 据 了 大 部 分 篇 幅 ， 最 后 回 到 关 键 问 题 ： 电 脑 能 不 能 代 替 人 脑 。 和 现 在 流 行 的 观 点 相 反 ， 作 者 认 为 人 的 某 种 “ 洞 察 ” 是 不 能 被 算 法 模 拟 的 。 也 许 作 者 想 说 ， 人 的 灵 魂 是 无 可 取 代 的 。"
+      ]
+    },
+    "words": {
+      "train_file": "D:\\pythonProject\\pythonProject\\ecommerce-text-classification\\models\\.fasttext_scratch\\train_words.txt",
+      "dev_file": "D:\\pythonProject\\pythonProject\\ecommerce-text-classification\\models\\.fasttext_scratch\\dev_words.txt",
+      "rows": {
+        "train": 50206,
+        "dev": 6274
+      },
+      "stats": {
+        "train": {
+          "total": 50206,
+          "written": 50206,
+          "skipped_empty": 0,
+          "skipped_invalid_label": 0,
+          "sanitized": 0
+        },
+        "dev": {
+          "total": 6274,
+          "written": 6274,
+          "skipped_empty": 0,
+          "skipped_invalid_label": 0,
+          "sanitized": 0
+        }
+      },
+      "sample_lines": [
+        "__label__书籍 做 父母 一定 要 有 刘墉 这样 的 心态 ， 不断 地 学习 ， 不断 地 进步 ， 不断 地 给 自己 补充 新鲜血液 ， 让 自己 保持 一颗 年轻 的 心 。 我 想 ， 这 是 他 能 很 好 的 和 孩子 沟通 的 一个 重要 因素 。 读 刘墉 的 文章 ， 总能 让 我 看到 一个 快乐 的 平易近人 的 父亲 ， 他 始终 站 在 和 孩子 同样 的 高度 ， 给 孩子 创造 着 一个 充满 爱 和 自由 的 生活 环境 。 很 喜欢 刘墉 在 字里行间 流露出 的 做 父母 的 那种 小 狡黠 ， 让 人 总是 忍俊不禁 ， 父母 和 子女 之间 有时候 也 是 一种 战斗 ， 武力 争斗 过于 低级 了 ， 智力 较量 才 更 有 趣味 。 所以 ， 做 父母 的 得 加把劲 了 ， 老 思想 老 观念 注定 会 一败涂地 ， 生命不息 ， 学习 不止 。 家庭教育 ， 真的 是 乐在其中 。",
+        "__label__书籍 作者 真有 英国人 严谨 的 风格 ， 提出 观点 、 进行 论述 论证 ， 尽管 本人 对 物理学 了解 不深 ， 但是 仍然 能 感受 到 真理 的 火花 。 整本书 的 结构 颇 有 特点 ， 从 当时 （ 本 书写 于 八十年代 ） 流行 的 计算机 话题 引入 ， 再用 数学 、 物理学 、 宇宙学 做 必要 的 铺垫 — — 这些 内容 占据 了 大部分 篇幅 ， 最后 回到 关键问题 ： 电脑 能 不能 代替 人脑 。 和 现在 流行 的 观点 相反 ， 作者 认为 人 的 某种 “ 洞察 ” 是 不能 被 算法 模拟 的 。 也许 作者 想 说 ， 人 的 灵魂 是 无可取代 的 。"
+      ]
+    }
+  },
+  "categories": [
+    "书籍",
+    "平板",
+    "手机",
+    "水果",
+    "洗发水",
+    "热水器",
+    "蒙牛",
+    "衣服",
+    "计算机",
+    "酒店"
+  ],
+  "seed": 42
+}
