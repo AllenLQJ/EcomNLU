@@ -186,4 +186,3 @@ token 长度分布写入 `reports/bert-token-lengths.json`，模型契约信息�
 > 说明：在受限 shell（本机 DSH 的 workspace-write 沙箱）中直接跑测试时，有 4 个使用
 > `tempfile.TemporaryDirectory` 的用例会因沙箱拒绝写入临时目录而报 `PermissionError`；
 > 放开文件权限后同一套命令 **60 项全部通过**。这是运行环境的限制，不是代码缺陷。
-
