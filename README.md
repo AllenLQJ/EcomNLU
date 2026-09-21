@@ -292,7 +292,23 @@ python -m src.web.app                                # 不带模型启动
 python -m src.web.app --model-dir models/tfidf_svm   # 加载指定模型
 ```
 
-模型目录也可用环境变量 `WEB_MODEL_DIR` 指定。
+模型目录按 **`--model-dir` 参数 > `WEB_MODEL_DIR` 环境变量 > `configs/base.yaml`
+的 `api.model_dir`** 顺序解析（见 `src/web/config.py`）。
+
+注意 `WEB_MODEL_DIR` 必须在**启动进程之前**设置。`src/web/app.py` 末尾的
+`app = create_app()` 在模块被导入时就完成配置解析，导入之后再设置环境变量不会生效：
+
+```powershell
+$env:WEB_MODEL_DIR = "models/bert_base_chinese"
+python -m src.web.app                      # 正确：变量先于进程
+```
+
+```powershell
+python -c "import os; os.environ['WEB_MODEL_DIR']='models/...'; import src.web.app"  # 错误：导入已发生
+```
+
+因此若在 Python 代码里（而非命令行）启动服务，请显式传参：
+`create_app(model_dir="models/bert_base_chinese")`。
 
 | 参数 | 默认值 | 说明 |
 | --- | --- | --- |
