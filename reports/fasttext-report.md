@@ -62,7 +62,7 @@ __label__书籍 做 父母 一定 要 有 刘墉 这样 的 心态 ， 不断 �
 models/fasttext_word_tuned/
 ├── model.bin              # 模型本体
 ├── label_mapping.json     # 从 data/processed 逐字节复制
-├── metadata.json          # §2.3 全字段，含 split_manifest_sha256
+├── metadata.json          # §2.3 全字段，含 dataset_fingerprint
 └── metrics.json           # §2.4 指标 + cost
 ```
 

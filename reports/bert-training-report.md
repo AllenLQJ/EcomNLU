@@ -4,7 +4,7 @@
 - 日期：2026-09-21
 - 对应阶段：AGENTS.md §5.4、`docs/contracts.md` 第二章
 - 数据：`data/processed/`（已通过数据契约校验 19/19；train 50,206 / dev 6,274 / test 6,272；
-  `metadata.json` 里的 `split_manifest_sha256` 与所有其它模型一致）
+  `metadata.json` 里的 `dataset_fingerprint` 与所有其它模型一致）
 
 ## 1. `max_length` 的确定依据
 

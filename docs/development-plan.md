@@ -13,7 +13,7 @@
 | 9 月 20 日前 | M1 项目初始化 | LanQvJian | 全员 | 目录、依赖、README、数据来源、分工、计划完整；下载脚本和基础检查通过 | 已完成 |
 | 9 月 21 日上午 | M2 数据闭环 | HuMingChang | 全员 | 清洗和 8:1:1 分层划分可复现；无明显文本跨集合泄漏；核心 EDA 图表和结论齐全 | 已完成 |
 | 9 月 21 日下午 | M3 基线闭环 | HuMingChang | LanQvJian | TF-IDF 线性模型与随机森林完成；模型可重载；测试指标完整 | 已完成 |
-| 9 月 21 日下午至晚间 | M4 高级模型 | HongSenYuan | HuMingChang、LanQvJian | FastText 完成；BERT 至少完成可复现训练与评估；使用同一测试集对比 | 待复核（远端分支已提交） |
+| 9 月 21 日下午至晚间 | M4 高级模型 | HongSenYuan | HuMingChang、LanQvJian | FastText 完成；BERT 至少完成可复现训练与评估；使用同一测试集对比 | 最终验收中（待 BERT 产物） |
 | 9 月 21 日晚间至 9 月 22 日上午 | M5 优化与创新 | HuMingChang、HongSenYuan | LanQvJian | 情感基线与一种 BERT 优化形成可复现闭环；未完成项如实标记 | 未开始 |
 | 9 月 21 日下午至 9 月 22 日 10:00 | M6 部署与答辩 | LanQvJian | 全员 | Web/API 真实推理通过；演示材料和离线备用方案齐全 | 进行中（API 骨架测试通过，真实模型联调待完成） |
 | 9 月 22 日 10:00–11:30 | 集成验收 | LanQvJian | 全员 | 合并已验收代码、运行端到端检查、确认汇报分工 | 未开始 |
@@ -87,11 +87,13 @@
 
 ### M4 复核与最终验收
 
-- [ ] HongSenYuan 提供 M4 分支、训练参数、实际指标、模型产物说明和复现命令
-- [ ] HuMingChang 技术复核：相同数据集指纹、相同标签顺序、相同评估口径、验证集选模且测试集未参与调参
-- [ ] HuMingChang 复核 FastText/BERT 的 `metrics.json`，并与 `tfidf_svm` 在同一测试集上对比
+- [x] HongSenYuan 提供 M4 分支、训练参数、实际指标、模型产物说明和复现命令
+- [x] HuMingChang 技术复核：相同数据集指纹、相同标签顺序、相同评估口径、验证集选模且测试集未参与调参
+- [x] HuMingChang 复核 FastText/BERT 的 `metrics.json`，并与 `tfidf_svm` 在同一测试集上对比
 - [ ] LanQvJian 最终检验：模型契约、磁盘重载、单条/批量真实推理、大小、延迟及 M6 部署可行性
 - [ ] 修复全部阻断项并复验后合入 `main`
+
+复核与最终验收记录见 `reports/m4-review.md`。
 
 ### M5 并行任务
 
