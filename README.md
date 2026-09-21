@@ -48,7 +48,7 @@
 
 ## 环境准备
 
-推荐使用 Python 3.11。
+团队验证使用的解释器为 **Python 3.12.14**（即仓库内的 `venv/`）。团队成员应统一解释器口径，并在数据质量报告与模型 `metadata.json` 的 `framework_version` / 运行环境字段中记录实际版本（AGENTS.md §7.2）。
 
 ```powershell
 python -m venv .venv
@@ -56,6 +56,8 @@ python -m venv .venv
 python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
+
+`.venv/` 与 `venv/` 都被 `.gitignore` 忽略，按个人习惯任选其一即可，但团队以 `venv/` 的实际版本为准。
 
 `fasttext-wheel`、PyTorch 和 Transformers 将在对应模型阶段实际验证；M1 不代表这些模型已经成功训练。
 
