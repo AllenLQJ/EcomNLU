@@ -14,14 +14,15 @@
 
 - [x] M1：项目初始化
 - [x] M2：数据清洗、分层划分与 EDA（待团队复核，见 `docs/development-plan.md`）
-- [ ] M3：TF-IDF 线性基线与随机森林
+- [x] M3：TF-IDF 特征、线性基线与随机森林对比（待团队复核）
 - [ ] M4：FastText 与 BERT
 - [ ] M5：模型优化与情感分析扩展
 - [ ] M6：Web 部署与答辩材料
 
 M2 已产出可复现的数据闭环：原始 62,774 条 → 清洗后 62,752 条，
 按类别分层划分为 50,206 / 6,274 / 6,272，跨集合重复文本为 0。
-模型训练与端到端预测尚未开始。
+M3 已产出三个传统模型基线，选定 `tfidf_svm`（测试集 Macro-F1 = 0.8883）。
+模型训练与端到端预测的演示页面尚未完成。
 
 ## 项目周期
 
@@ -117,6 +118,38 @@ python scripts/report_environment.py    # 依赖与实际环境比对记录
 ```powershell
 python scripts/verify_data_contract.py
 ```
+
+## 传统模型基线（M3）
+
+训练 TF-IDF 基线与评估：
+
+```powershell
+python scripts/train_baseline.py                 # 完整训练，约 6-7 分钟
+python scripts/train_baseline.py --quick         # 小样本冒烟，用于快速验证流程
+python scripts/train_baseline.py --skip-ablation # 跳过特征方案对照，直接用默认配置
+```
+
+脚本会：只用训练集拟合向量器 → 在验证集上按 **Macro-F1** 选模 → 写出三个模型的
+契约产物 → 通过统一入口实测推理成本 → 生成对比报告。
+
+| 产物 | 路径 |
+| --- | --- |
+| 模型产物（每个模型 5 个文件） | `models/{tfidf_logreg,tfidf_svm,tfidf_rf}/` |
+| 模型对比报告 | `reports/m3-baseline-comparison.md` |
+| 机器可读结果（含调参与对照明细） | `reports/m3-baseline-results.json` |
+
+模型契约用统一校验器验收（对每个模型逐项校验文件、字段、类别顺序与真实推理）：
+
+```powershell
+python scripts/verify_model_contract.py
+```
+
+实测结果（测试集 Macro-F1）：`tfidf_svm` 0.8883 ＞ `tfidf_logreg` 0.8777 ＞ `tfidf_rf` 0.8281。
+**随机森林并未胜出**——它在三项指标上均垫底，体积 900 MB、单条延迟 72 ms，
+不适合部署；结论与取舍依据见对比报告。
+
+模型文件较大（合计约 1.05 GB），已被 `.gitignore` 排除，不进入版本库；
+首次使用需运行上述训练命令或向队友索取。
 
 ## 运行环境
 
