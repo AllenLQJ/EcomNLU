@@ -1,20 +1,27 @@
 """加载已训练的模型并对评论做预测，或对某个划分跑出评估分数。
 
 Usage:
+    # 不带参数：默认对验证集 dev.csv 做评估，先列出逐条预测预览再给出真实分数
+    python scripts/predict.py
+    python scripts/predict.py --preview 0        # 只看分数，不列逐条预览
+
     # 单条评论：给出类别、置信度与 Top-K 概率
     python scripts/predict.py --text "手机很好用，电池耐用"
 
     # 指定模型与 Top-K
     python scripts/predict.py --model models/tfidf_logreg --text "这本书不错" --top-k 5
 
-    # 批量：从 CSV 读取一列评论
+    # 批量：从 CSV 读取一列评论（CSV 自带标签列时会一并显示预测对错与准确率）
+    python scripts/predict.py --file data/processed/dev.csv --limit 20
     python scripts/predict.py --file reviews.csv --text-column review
 
     # 对某个划分跑完整评估分数（Macro-F1、Accuracy、逐类别指标）
-    python scripts/predict.py --eval test
-    python scripts/predict.py --eval dev --model models/tfidf_logreg
+    python scripts/predict.py --eval test                 # 默认 dev
+    python scripts/predict.py --eval test --output scores.json
 
 输入文件：
+    - 不带参数：读 ``data/processed/dev.csv``（验证集，自带真实标签）。
+      之所以默认用它，是因为它既有数据又有标签，一条命令即可同时自检预测与分数；
     - ``--text``：直接给一条评论文本，不需要额外文件；
     - ``--file``：一个 CSV，用 ``--text-column`` 指定评论列（默认 ``review``）；
     - ``--eval``：``data/processed/{dev,test}.csv``，需要先完成 M2 的数据划分。
@@ -87,6 +94,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--top-k", type=int, default=3, help="展示前 K 个类别，默认 3")
     parser.add_argument("--limit", type=int, default=None, help="只预测前 N 条，便于抽查")
+    parser.add_argument(
+        "--preview",
+        type=int,
+        default=10,
+        help="评估模式下列出前 N 条逐条预测（0 表示不列出），默认 10",
+    )
     parser.add_argument("--output", default=None, help="--eval 模式下把指标 JSON 写到该路径")
     return parser.parse_args(argv)
 
@@ -130,7 +143,9 @@ def resolve_model_dir(config: dict, explicit: str | None) -> Path:
     return candidates[0]
 
 
-def print_single_predictions(predictor, texts: list[str], *, top_k: int) -> float:
+def print_single_predictions(
+    predictor, texts: list[str], *, top_k: int, truth: list[str] | None = None
+) -> float:
     """执行预测并打印逐条结果。
 
     计时在函数内部完成：预测才是耗时部分，若在调用处取时间会测到接近 0 的值。
@@ -139,6 +154,8 @@ def print_single_predictions(predictor, texts: list[str], *, top_k: int) -> floa
         predictor：统一入口返回的预测器。
         texts：原始评论文本列表。
         top_k：展示前 K 个类别。
+        truth：可选的真实标签；提供时会在每条前标出 ✓/✗ 并在末尾给出准确率。
+            只有在输入数据自带标签时才可用（例如直接喂 ``data/processed/dev.csv``）。
 
     返回：
         整批推理耗时（毫秒）。
@@ -149,10 +166,18 @@ def print_single_predictions(predictor, texts: list[str], *, top_k: int) -> floa
     elapsed_ms = (time.perf_counter() - started) * 1000.0
     per_item = elapsed_ms / max(len(texts), 1)
 
+    correct = 0
     for index, (text, label, item) in enumerate(zip(texts, labels, probabilities), start=1):
         ranked = sorted(item.items(), key=lambda pair: -pair[1])[:top_k]
-        print(f"[{index}] 评论：{text}")
+        prefix = ""
+        if truth is not None:
+            is_correct = label == truth[index - 1]
+            correct += int(is_correct)
+            prefix = "✓ " if is_correct else "✗ "
+        print(f"{prefix}[{index}] 评论：{text}")
         print(f"    预测类别：{label}（置信度 {item.get(label, 0.0):.4f}）")
+        if truth is not None:
+            print(f"    真实类别：{truth[index - 1]}")
         print(
             "    Top-"
             + str(len(ranked))
@@ -162,6 +187,8 @@ def print_single_predictions(predictor, texts: list[str], *, top_k: int) -> floa
         if index < len(texts):
             print()
     print(f"\n共 {len(texts)} 条，总耗时 {elapsed_ms:.1f} ms，平均 {per_item:.2f} ms/条")
+    if truth is not None:
+        print(f"其中预测正确 {correct}/{len(texts)}，准确率 {correct / max(len(texts), 1):.4f}")
     return elapsed_ms
 
 
@@ -199,6 +226,21 @@ def run_evaluation(args: argparse.Namespace, predictor, model_dir: Path) -> int:
     started = time.perf_counter()
     predictions = predictor.predict(texts)
     elapsed_ms = (time.perf_counter() - started) * 1000.0
+
+    # 逐条预览：放在指标之前，便于先确认「预测本身是否正常」再读分数。
+    # 只预览前面若干条，避免 6000 余行输出把终端刷爆。
+    if args.preview > 0:
+        shown = min(args.preview, len(texts))
+        print(f"逐条预览（前 {shown} 条，✓ 表示预测与真实类别一致）：")
+        for index in range(shown):
+            flag = "✓" if predictions[index] == truth[index] else "✗"
+            text = texts[index]
+            if len(text) > 34:
+                text = text[:34] + "…"
+            print(
+                f"  {flag} 预测 {predictions[index]:<4} / 真实 {truth[index]:<4}  {text}"
+            )
+        print()
 
     block = compute_metrics_block(truth, predictions, categories=categories)
     print(f"Macro-F1      {block['macro_f1']:.4f}")
@@ -271,6 +313,7 @@ def main(argv: list[str] | None = None, *, default_model: str | None = None) -> 
 
     if args.text:
         texts = [args.text]
+        truth: list[str] | None = None
     elif args.file:
         file_path = Path(args.file)
         if not file_path.is_file():
@@ -280,17 +323,31 @@ def main(argv: list[str] | None = None, *, default_model: str | None = None) -> 
             raise KeyError(
                 f"{file_path} 中没有列 {args.text_column!r}；现有列：{list(frame.columns)}"
             )
-        texts = frame[args.text_column].astype(str).tolist()
         if args.limit:
-            texts = texts[: args.limit]
+            frame = frame.head(args.limit)
+        texts = frame[args.text_column].astype(str).tolist()
+        # CSV 若自带标签列（例如直接喂 data/processed/dev.csv），就一并校验对错
+        category_column = config["data"]["category_column"]
+        truth = (
+            frame[category_column].astype(str).tolist()
+            if category_column in frame.columns
+            else None
+        )
     else:
-        raise SystemExit("请用 --text 给一条评论、用 --file 给 CSV，或用 --eval 跑评估分数。")
+        # 未指定任何输入时，默认直接使用验证集 dev.csv：它自带真实标签，
+        # 因此可以一次给出逐条预测预览与真实评估分数，便于快速自检。
+        print(
+            "未指定输入，默认使用 data/processed/dev.csv。\n"
+            "如需其他输入：--text 单条评论、--file 指定 CSV、--eval dev|test 切换划分。\n"
+        )
+        args.eval = "dev"
+        return run_evaluation(args, predictor, model_dir)
 
     if args.top_k < 1 or args.top_k > 10:
         raise SystemExit(f"--top-k 必须在 1-10 之间，实际为 {args.top_k}")
 
     print(f"模型：{model_dir}\n")
-    print_single_predictions(predictor, texts, top_k=args.top_k)
+    print_single_predictions(predictor, texts, top_k=args.top_k, truth=truth)
     return 0
 
 

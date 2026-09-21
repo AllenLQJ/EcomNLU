@@ -773,6 +773,34 @@ class PredictScriptTests(unittest.TestCase):
             resolve_model_dir(config, "models/not_a_real_model")
         self.assertIn("not_a_real_model", str(context.exception))
 
+    def test_no_arguments_defaults_to_the_dev_split(self) -> None:
+        """不带任何输入参数时，应默认使用验证集而不是报错。
+
+        因为 ``data/processed/dev.csv`` 自带真实标签，默认行为可以一次给出
+        逐条预测预览与真实评估分数，便于快速自检。
+        """
+        from scripts.predict import parse_args
+
+        args = parse_args([])
+        self.assertIsNone(args.text)
+        self.assertIsNone(args.file)
+        self.assertIsNone(args.eval)
+        self.assertEqual(args.preview, 10, "评估模式应默认列出 10 条逐条预测")
+
+    def test_preview_can_be_disabled(self) -> None:
+        """``--preview 0`` 应关闭逐条预览，只输出分数。"""
+        from scripts.predict import parse_args
+
+        self.assertEqual(parse_args(["--preview", "0"]).preview, 0)
+
+    def test_explicit_inputs_override_the_default(self) -> None:
+        """显式给出 --text / --file / --eval 时不得落到默认分支。"""
+        from scripts.predict import parse_args
+
+        self.assertEqual(parse_args(["--text", "很好"]).text, "很好")
+        self.assertEqual(parse_args(["--file", "x.csv"]).file, "x.csv")
+        self.assertEqual(parse_args(["--eval", "test"]).eval, "test")
+
     def test_every_wrapper_has_a_matching_trained_model(self) -> None:
         """每个封装脚本指向的模型都应已训练；未训练时跳过。"""
         models_dir = project_path("models")

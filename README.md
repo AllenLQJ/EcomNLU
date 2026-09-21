@@ -169,9 +169,18 @@ python scripts/predict_svm.py --text "这本书内容不错，作者水平很高
 python scripts/predict_svm.py --text "手机很好用，电池耐用" --top-k 5
 ```
 
-批量预测（CSV 中的一列评论）：
+**不带任何参数时默认使用验证集 `data/processed/dev.csv`**：它自带真实标签，
+因此一条命令即可同时看到逐条预测预览（✓/✗ 标注）与真实评估分数：
 
 ```powershell
+python scripts/predict_svm.py                 # 预览前 10 条 + dev 全量分数
+python scripts/predict_svm.py --preview 0     # 只看分数，不列预览
+```
+
+批量预测（CSV 中的一列评论；CSV 自带标签列时会一并显示预测对错与准确率）：
+
+```powershell
+python scripts/predict_svm.py --file data/processed/dev.csv --limit 20
 python scripts/predict_svm.py --file reviews.csv --text-column review --limit 20
 ```
 
