@@ -5,7 +5,7 @@
 数据来源说明（如实记录，便于复核）：
 
 - dev/test 指标、模型体积、量化层数、重新加载验证：来自 `python scripts/quantize_bert.py` 的完整运行，原始数据存于 `reports/m5-quantization-results.json`。
-- 量化模型的 `models/bert_base_chinese_int8/metrics.json` 由该 JSON 回填生成（字段经 `src.models.artifact.write_metrics_json` 写入，保证与契约结构一致）；数值均为上述某次真实评测的实测结果，未做任何调整。
+- 量化模型的 `models/bert_base_chinese_quantized/metrics.json` 由该 JSON 回填生成（字段经 `src.models.artifact.write_metrics_json` 写入，保证与契约结构一致）；数值均为上述某次真实评测的实测结果，未做任何调整。
 - 「两者都在 CPU 上」那张延迟表：由一次独立的 CPU 基准测量得到后并入结果 JSON，因为主评测流程记录的 fp32 延迟来自 CUDA，与 int8 的 CPU 延迟不可比。
 - 可用 `python scripts/quantize_bert.py --render-only` 从已有 JSON 重新渲染本报告，不会重跑实验。
 

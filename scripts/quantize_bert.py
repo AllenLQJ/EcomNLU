@@ -9,7 +9,7 @@
     * 源模型默认取 ``models/bert_base_chinese``（M4 选定并保存的 dev Macro-F1 最优权重）；
     * 评测一律走 ``src.evaluation.predictor_eval.evaluate_model_dir``，与 M3/M4 使用
       **同一份测试集、同一套指标实现**，否则对比不成立（AGENTS.md §12.4）；
-    * 量化前后都写 ``metrics.json``，量化模型落在 ``models/bert_base_chinese_int8/``；
+    * 量化前后都写 ``metrics.json``，量化模型落在 ``models/bert_base_chinese_quantized/``；
     * AGENTS.md §5.6 要求"不得把成功保存视为优化成功"，因此脚本最后必做
       **重新加载 + 真实推理**验证，并把结果写入报告的"重新加载验证"一节。
 """
@@ -42,7 +42,7 @@ from src.models.optimization.quantization import (  # noqa: E402
 
 
 DEFAULT_SOURCE = MODELS_DIR / "bert_base_chinese"
-DEFAULT_TARGET = MODELS_DIR / "bert_base_chinese_int8"
+DEFAULT_TARGET = MODELS_DIR / "bert_base_chinese_quantized"
 
 #: 重新加载验证用的探针文本，覆盖不同类别与长度。
 PROBE_TEXTS = [
@@ -220,7 +220,7 @@ def render_report(data: dict[str, Any]) -> str:
         "",
         "- dev/test 指标、模型体积、量化层数、重新加载验证：来自 `python scripts/quantize_bert.py` "
         "的完整运行，原始数据存于 `reports/m5-quantization-results.json`。",
-        "- 量化模型的 `models/bert_base_chinese_int8/metrics.json` 由该 JSON 回填生成"
+        "- 量化模型的 `models/bert_base_chinese_quantized/metrics.json` 由该 JSON 回填生成"
         "（字段经 `src.models.artifact.write_metrics_json` 写入，保证与契约结构一致）；"
         "数值均为上述某次真实评测的实测结果，未做任何调整。",
         "- 「两者都在 CPU 上」那张延迟表：由一次独立的 CPU 基准测量得到后并入结果 JSON，"

@@ -4,7 +4,7 @@
 
 - 完成内容：M5 的 BERT 动态量化闭环。把 M4 保存的 fp32 BERT 微调模型
   （`models/bert_base_chinese`）量化为 int8 动态量化模型
-  （`models/bert_base_chinese_int8`），并完成优化前后的统一口径对比。
+  （`models/bert_base_chinese_quantized`），并完成优化前后的统一口径对比。
 - 涉及文件：
   - `src/models/optimization/quantization.py`（新增，量化与量化产物加载）
   - `scripts/quantize_bert.py`（新增，一键量化 + 评测 + 报告）

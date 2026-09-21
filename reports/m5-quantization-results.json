@@ -1,6 +1,6 @@
 {
   "source_model": "bert_base_chinese",
-  "quantized_model": "bert_base_chinese_int8",
+  "quantized_model": "bert_base_chinese_quantized",
   "categories": [
     "书籍",
     "平板",
