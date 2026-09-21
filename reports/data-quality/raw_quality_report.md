@@ -1,9 +1,9 @@
 # 原始数据质量报告
 
-- 生成时间：2026-09-21 01:21:49
+- 生成时间：2026-09-21 10:52:06
 - 数据文件：`data/raw/online_shopping_10_cats.csv`（11,299,695 字节）
 - SHA-256：`f6c5b724122d8547b700ac4524898eb7e28abbee63f798e95a8faa408829afdb`（与预期一致）
-- 运行环境：Python 3.10.20，pandas 2.3.3
+- 运行环境：Python 3.12.14，pandas 2.3.3
 
 > 本报告由 `src/data/check_raw.py` 自动生成，只读检查，未修改原始数据。
 
