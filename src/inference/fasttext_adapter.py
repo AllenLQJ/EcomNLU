@@ -118,7 +118,15 @@ def apply_numpy2_compat() -> bool:
 
 
 class FastTextCategoryPredictor(BaseCategoryPredictor):
-    """加载 ``model.bin`` 完成预测。"""
+    """加载 ``model.bin`` 完成预测。
+
+    类级默认值让"只设置了 ``categories`` 与 ``model``"的实例（例如只替换模型输出
+    以测试输出处理逻辑的单元测试）也能安全调用 ``_prepare``：未走 ``__init__`` 时
+    切分方式退化为不切分，与旧行为一致。
+    """
+
+    tokenize_mode: str = "none"
+    _tokenizer: Callable[[str], str] | None = None
 
     def __init__(self, model_dir: Path) -> None:
         self.model_dir = Path(model_dir)
