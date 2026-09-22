@@ -14,7 +14,7 @@
    情感类名与顺序取自 ``configs/base.yaml`` 的 ``task.sentiment_categories``，
    由调用方（``scripts/train_sentiment.py``）传入。这样标签顺序只有一处定义，
    校验器与 Web 层读的是同一份配置，不会出现「训练脚本按 0/1 顺序、
-   某处按字母顺序」这类静默错位（契约 v1.2 草案 §2.6）。
+   某处按字母顺序」这类静默错位（契约 v1.2 §2.1）。
 
 2. **训练标签复用数据契约的 ``label`` 列，不重新制作标签。**
    M2 已经产出带 ``label`` 列的 ``train/dev/test.csv``，且与 M3 使用同一份划分
@@ -63,7 +63,7 @@ __all__ = [
 
 
 # 情感模型的目录名。契约 §2.1 的 model_name 表在 v1.1 中尚无情感任务条目，
-# v1.2 草案 §2.1 已按 <情感任务前缀>_<同名模型> 的规则补齐命名，
+# v1.2 §2.1 已按 <情感任务前缀>_<同名模型> 的规则补齐命名，
 # 本模块与之一致：sentiment_tfidf_logreg / sentiment_tfidf_svm。
 SENTIMENT_MODEL_NAMES: tuple[str, ...] = (
     "sentiment_tfidf_logreg",

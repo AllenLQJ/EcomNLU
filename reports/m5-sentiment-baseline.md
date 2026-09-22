@@ -140,7 +140,7 @@
 
 ## 9. 结论与已知局限
 
-- 本机检测到可用的 CUDA 设备：NVIDIA GeForce RTX 4060 Laptop GPU（显存 8.0 GB，当前可用 6.9 GB，算力 8.9），torch 版本 2.6.0+cu124。但本报告涉及的三个模型均为 scikit-learn 实现，**该库没有 GPU 后端**，因此 `metadata.device` 按实际情况记为 `cpu`；CUDA 将用于 M4 的 FastText 与 BERT（PyTorch）阶段。
+- 本机检测到可用的 CUDA 设备：NVIDIA GeForce RTX 4060 Laptop GPU（显存 8.0 GB，当前可用 6.9 GB，算力 8.9），torch 版本 2.6.0+cu124。但本报告涉及的两个情感模型均为 scikit-learn 实现，**该库没有 GPU 后端**，因此 `metadata.device` 按实际情况记为 `cpu`；M4 BERT 已使用 CUDA 完成训练，后续深度学习实验仍可继续使用该设备。
 - 情感标签在三个划分上的正例率都在 50.5% 左右，整体不存在类别不均衡，因此未使用 class_weight 或重采样；但**类别内部并不均衡**（热水器正例率 82.6%、书籍 54.6%），第 6 节的逐类别结果需结合这一点阅读。
 - 情感任务的分类边界比商品类别更主观：「一般」「还可以」这类中性评价在不同类别下被标注成了不同极性，这是标签本身的噪声，不是模型缺陷；详见错误分析文档中列出的真实误分类样本。
 - 测试集 6,272 条中的误分类样本已全部写入 `reports/m5-sentiment-error-cases.json`，未抽样、未截断，便于复核每一条结论。

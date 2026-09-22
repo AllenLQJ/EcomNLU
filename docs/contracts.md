@@ -1,8 +1,8 @@
 # 接口契约（强制）
 
-版本：v1.1
+版本：v1.2
 首次生效：2026-09-21
-本版生效：2026-09-21（三名成员已确认设备条款修订）
+本版生效：2026-09-21（三名成员已确认 v1.2 修订）
 维护人：LanQvJian
 
 ## 变更记录
@@ -12,12 +12,15 @@
 | v1.0 | 2026-09-21 | 首次发布 | — |
 | v1.0.1 | 2026-09-21 | §2.3：`split_manifest_sha256` 改为 `dataset_fingerprint`，由 train/dev/test 三个 CSV 的内容哈希计算 | v1.0 的指纹取自 `split_manifest.json` 整体，该文件含 `created_at`，每次重新生成数据都会变化。即使三个 CSV 字节完全一致，模型仍会被判定为"基于旧数据训练"，导致 M3 无法通过验收（见 `reports/m3-validation.md` 阻断项） |
 | v1.1 | 2026-09-21 | §2.3：`device` 改为记录实际使用的 `cpu` 或 `cuda` | M4 可使用已验证的 CUDA 环境训练，契约不得把设备错误固定为 CPU |
+| v1.2 | 2026-09-21 | 固定 M2 冲突重复处理规则；新增情感任务的模型命名、标签映射、指标维度、统一推理与配置约定 | M5 情感模型必须能在不破坏主任务契约的前提下验收和部署 |
 
 > **v1.0.1 是 v1.0 的勘误（erratum），不是功能扩展。**
 > v1.0 规定的指纹条款任何人都无法稳定通过重新生成校验，属于规范缺陷，因此当时没有占用 v1.1 版本号。
 >
 > v1.1 已通过 HongSenYuan 提出、HuMingChang 同意、LanQvJian 批准的设备条款修订。
-> 同一提案中的情感任务产物约定与冲突重复处理规则仍待决，不属于本版已生效内容。
+> v1.2 的冲突重复处理规则与情感任务产物约定已由 LanQvJian、HuMingChang、
+> HongSenYuan 三人同意并正式生效，确认记录见
+> `reports/meeting-notes/2026-09-21-contract-v1.2-clause-draft.md`。
 >
 > v1.0.1 仅改动 §2.3 的数据集指纹定义，其余条款与 v1.0 完全相同。
 > 2026-09-21 的两份契约确认纪要以 v1.0 为准，其 §2.3 相关描述由本版取代。
@@ -152,6 +155,9 @@ data/processed/
 - 三个 `overlap` **必须是 `0`**（不是占位符，是硬性要求）。任何一项不为 0，说明划分存在跨集合泄漏，数据不合格，必须重做（AGENTS.md §3.1「避免同一文本同时进入训练集和测试集」、§12.4）。
 - `files` 中的 `sha256` 是该 CSV 文件本身的哈希，用于证明所有模型使用了同一份数据。
 - `cleaning.rules` 必须如实记录实际执行的规则。若某项未处理，写 `"none"`，不得留空或省略。
+- `cleaning.rules.duplicate_review` 固定为 `"drop_within_category_only"`：只在同一类别内去除重复文本；跨类别的相同文本保留。
+- `split.dedup_key` 固定为 `"normalized_text"`，并且划分必须按该键分组；同一归一化文本的全部记录必须进入同一个划分。
+- `leakage_check.based_on` 固定为 `"normalized_text"`，三组跨集合交集必须全部为 0。不得只做类别分层而忽略文本分组。
 
 ### 1.5 数据契约的验证方式
 
@@ -187,6 +193,10 @@ models/<model_name>/
 | `fasttext_char` | 字符级 FastText |
 | `fasttext_word` | 词级 FastText |
 | `bert_base_chinese` | BERT 微调 |
+| `sentiment_tfidf_logreg` | 情感二分类 · TF-IDF + 逻辑回归 |
+| `sentiment_tfidf_svm` | 情感二分类 · TF-IDF + 校准 LinearSVC |
+| `sentiment_fasttext_word` | 情感二分类 · 词级 FastText |
+| `sentiment_bert_base_chinese` | 情感二分类 · BERT 微调 |
 | `<model_name>_<优化方式>` | M5 优化产物，如 `bert_base_chinese_quantized` |
 
 无论何种模型，目录下**必须**包含以下四个部分：
@@ -194,12 +204,20 @@ models/<model_name>/
 ```text
 models/<model_name>/
 ├── <模型本体>
-├── label_mapping.json     # 内容与 data/processed/label_mapping.json 完全一致
+├── label_mapping.json     # 内容按 metadata.task 确定
 ├── metadata.json
 └── metrics.json
 ```
 
-`label_mapping.json` 必须与数据契约中的那份**逐字节相同**（直接复制，不得重新生成）。
+`label_mapping.json` 按 `metadata.task` 分两种情况：
+
+- `category_classification`：必须与 `data/processed/label_mapping.json` **逐字节相同**。
+- `sentiment_classification`：`categories` 固定为 `["负向", "正向"]`，`label2id`
+  固定为 `{"负向": 0, "正向": 1}`，`id2label` 固定为
+  `{"0": "负向", "1": "正向"}`；取值来源为
+  `configs/base.yaml` 的 `task.sentiment_categories`。原始 `label` 中 0 表示负向、1 表示正向，顺序不得调换。
+
+一个模型目录只能承载一个任务。情感模型统一使用 `sentiment_` 前缀，多任务产物不得与单任务产物共用目录。
 
 ### 2.2 模型本体的形式
 
@@ -264,6 +282,7 @@ models/<model_name>/
   使用的设备。若使用 CUDA，还必须在运行环境记录中注明 Python、PyTorch、CUDA
   版本和 GPU 型号，以便复现实验。
 - `hyperparameters` 必须记录完整到可以复现训练。
+- `task` 只能是 `category_classification` 或 `sentiment_classification`。
 
 ### 2.4 metrics.json
 
@@ -298,10 +317,11 @@ models/<model_name>/
 
 - 上例中的 `0`、`0.0`、`[]`、`""` 均为待填占位。**所有数值必须来自真实评估运行，不得编造或估计**（AGENTS.md §6、§7.4）。未评估的集合填 `null`。
 - 五个指标名固定为 `accuracy`、`macro_precision`、`macro_recall`、`macro_f1`、`weighted_f1`，与 `configs/base.yaml` 的 `evaluation.report_metrics` 一致。
-- `confusion_matrix` 为 10×10 二维数组，**行是真实类别、列是预测类别**，顺序严格按 `categories`。
+- `confusion_matrix` 的行列数必须等于 `categories` 长度：主任务为 10×10，情感任务为 2×2。**行是真实标签、列是预测标签**，顺序严格按 `categories`；`per_class` 的键也必须与 `categories` 一致。
 - **`test` 在选模阶段必须保持为 `null`。** 只有最终选定模型后才允许评估测试集并填入。
   中途用测试集调参或选模违反 AGENTS.md §6，视为数据泄漏。
 - `cost` 中的 `model_size_bytes` 与延迟为 AGENTS.md §6 对比表的必填项，不得事后估计，必须实测。
+- 情感任务可在顶层增加 `per_product_category`，记录各商品类别内的情感指标；该字段为可选扩展，不属于四件套必填结构。
 
 ### 2.5 统一加载接口
 
@@ -319,17 +339,20 @@ def load_predictor(model_dir: Path) -> CategoryPredictor:
 
 class CategoryPredictor(Protocol):
     def predict_proba(self, texts: list[str]) -> list[dict[str, float]]:
-        """返回每个样本的 {中文类别名: 概率}，必须包含全部 10 类。"""
+        """返回每个样本的 {中文标签名: 概率}，必须包含该模型全部标签。"""
 
     def predict(self, texts: list[str]) -> list[str]:
-        """返回每个样本的预测中文类别名。"""
+        """返回每个样本的预测中文标签名。"""
 ```
 
 规定：
 
-- `predict_proba` 的返回**必须覆盖全部 10 个类别**，未出现的类别补 0，不得只返回 top-k。
-- 键必须是中文类别名，不是整数 id。
+- `predict_proba` 的返回必须覆盖模型 `label_mapping.json` 中的**全部标签**（主任务 10 类、情感任务 2 类），未出现的标签补 0，不得只返回 top-k。
+- 键必须是 `label_mapping.json` 中的中文标签名，不是整数 id。
+- `load_predictor` 按目录加载，标签集取自该目录的 `label_mapping.json`；不新增仅名称不同的情感预测协议。
 - 每个模型负责把自己的原生输出适配到该接口。适配代码放在 `src/inference/`。
+
+`configs/base.yaml` 的 `task.sentiment_categories` 固定为 `["负向", "正向"]`，作为情感标签顺序的唯一配置来源。
 
 ### 2.6 模型契约的验证方式
 

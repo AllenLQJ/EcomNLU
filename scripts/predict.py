@@ -216,12 +216,12 @@ def build_label_space(config: dict, task: str) -> tuple[list[str], str]:
 
     异常：
         ValueError：情感任务的标签不是恰好 2 个时抛出。标签顺序是契约
-            v1.2 草案 §2.2 规定的 ``label_mapping.json`` 取值来源，
+            v1.2 §2.1 规定的 ``label_mapping.json`` 取值来源，
             长度不对说明配置被改坏了，必须显式报错。
 
     说明：
         两个任务的标签与列名都**只从 config 读**，不在脚本里硬编码，
-        以满足契约 v1.2 草案 §2.6「标签来源唯一」的要求。
+        以满足契约 v1.2 §2.1「标签来源唯一」的要求。
     """
     data_config = config["data"]
     if task == TASK_SENTIMENT:

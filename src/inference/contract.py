@@ -70,7 +70,7 @@ def load_label_mapping(model_dir: Path) -> dict[str, Any]:
     本函数是**任务无关**的：标签集完全取自传入目录的 ``label_mapping.json``，
     不假定一定是 10 个商品类别。因此同一份代码既能加载主任务模型
     （``categories`` 为 10 个商品类），也能加载情感任务模型
-    （``categories`` 为 ``["负向", "正向"]``），见契约 v1.2 草案 §2.5。
+    （``categories`` 为 ``["负向", "正向"]``），见契约 v1.2 §2.5。
     """
     mapping = read_json(model_dir, "label_mapping.json")
     categories = mapping.get("categories")

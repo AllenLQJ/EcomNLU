@@ -394,7 +394,7 @@ def main() -> int:
     category_column = data_config["category_column"]
     sentiment_column = data_config["sentiment_column"]
     seed = int(config["project"]["random_seed"])
-    # 情感标签顺序取自配置（契约 v1.2 草案 §2.2/§2.6），不在代码里硬编码：
+    # 情感标签顺序取自配置（契约 v1.2 §2.1），不在代码里硬编码：
     # labels[0] 对应原始 label 值 0，labels[1] 对应 1。
     labels = [str(value) for value in config["task"].get("sentiment_categories", [])]
     if len(labels) != 2:

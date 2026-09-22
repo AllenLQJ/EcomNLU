@@ -39,7 +39,7 @@ def valid_manifest() -> dict:
         "cleaning": {
             "rules": {
                 "empty_review": "drop",
-                "duplicate_review": "drop_conflicts",
+                "duplicate_review": "drop_within_category_only",
                 "control_chars": "remove",
                 "short_text_threshold": "none",
             },
@@ -71,6 +71,17 @@ class DataContractValidatorTests(unittest.TestCase):
         self.assertEqual(validator.checks[-1].status, "fail")
         self.assertIn("random_seed", validator.checks[-1].detail)
         self.assertIn("split.ratios", validator.checks[-1].detail)
+
+    def test_manifest_fixed_rules_reject_old_dedup_rules(self) -> None:
+        """v1.2 固定组合去重规则，不再接受旧的备选取值。"""
+        manifest = valid_manifest()
+        manifest["cleaning"]["rules"]["duplicate_review"] = "drop_conflicts"
+        manifest["split"]["dedup_key"] = "raw_text"
+        validator = DataContractValidator(Path("unused"), base_config())
+        validator.check_manifest_contract(manifest)
+        self.assertEqual(validator.checks[-1].status, "fail")
+        self.assertIn("drop_within_category_only", validator.checks[-1].detail)
+        self.assertIn("normalized_text", validator.checks[-1].detail)
 
     def test_measured_stratification_rejects_skewed_split(self) -> None:
         columns = ["sample_id", "review", "cat", "label"]

@@ -625,6 +625,10 @@ class ContractArtifactTests(unittest.TestCase):
         ):
             with self.subTest(rule=key):
                 self.assertNotIn(self.manifest["cleaning"]["rules"].get(key), (None, ""))
+        self.assertEqual(
+            self.manifest["cleaning"]["rules"]["duplicate_review"],
+            "drop_within_category_only",
+        )
         self.assertEqual(self.manifest["split"]["strategy"], "stratified_by_cat")
         self.assertEqual(
             self.manifest["split"]["ratios"],
@@ -634,7 +638,7 @@ class ContractArtifactTests(unittest.TestCase):
                 "test": float(self.config["data"]["test_ratio"]),
             },
         )
-        self.assertIn(self.manifest["split"]["dedup_key"], {"raw_text", "normalized_text"})
+        self.assertEqual(self.manifest["split"]["dedup_key"], "normalized_text")
         self.assertEqual(self.manifest["leakage_check"]["based_on"], "normalized_text")
 
     def test_manifest_hashes_match_the_real_files(self) -> None:
