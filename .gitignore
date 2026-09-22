@@ -58,3 +58,17 @@ reports/final-presentation/*.pdf
 
 # Notebook 检查点
 .ipynb_checkpoints/
+
+# Office 打开文件时产生的锁文件（崩溃后会残留，不应入库）
+~$*
+
+# 本地工具与运行期产物
+.codex-ppt-build/
+.codex-resume-work/
+.codex-worktrees/
+.web-server.log
+.web-server.pid
+
+# 个人材料（简历等），严禁提交到团队仓库。
+# 该目录名有误导性：它不是项目交付物，内容为个人隐私信息，见 AGENTS.md §8.2。
+deliverables/
