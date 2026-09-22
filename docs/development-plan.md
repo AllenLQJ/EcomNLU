@@ -127,6 +127,18 @@ M4/M6 联调复核结果：
 - [ ] LanQvJian 完成统一接口和 Web/API 联调
 - [ ] 组合分支通过契约检查、完整测试和端到端预测后再合入 `main`
 
+### M6 答辩材料与离线保障
+
+具体负责人、文件命名和验收方式见
+[`reports/final-presentation/task-assignment.md`](../reports/final-presentation/task-assignment.md)。
+
+- [ ] LanQvJian 完成类别与情感 Web/API 联调、系统截图、核心录屏和最终汇总
+- [ ] HuMingChang 提交数据、传统模型、情感基线、案例和 1 分钟讲解材料
+- [ ] HongSenYuan 提交 FastText、BERT、优化对比、案例和 1 分钟讲解材料
+- [ ] 验证 BERT 正常演示与 TF-IDF 轻量备用模型
+- [ ] 验证截图、录屏和静态材料三层降级方案
+- [ ] 完成一次 20 分钟以内的断网彩排
+
 ## 风险与应对
 
 | 风险 | 影响 | 应对方式 |
