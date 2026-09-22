@@ -132,9 +132,9 @@ M4/M6 联调复核结果：
 具体负责人、文件命名和验收方式见
 [`reports/final-presentation/task-assignment.md`](../reports/final-presentation/task-assignment.md)。
 
-- [ ] LanQvJian 完成类别与情感 Web/API 联调、系统截图、核心录屏和最终汇总
+- [ ] LanQvJian 完成类别与情感 Web/API 联调、系统截图、录屏复核和最终汇总
 - [ ] HuMingChang 提交数据、传统模型、情感基线、案例和 1 分钟讲解材料
-- [ ] HongSenYuan 提交 FastText、BERT、优化对比、案例和 1 分钟讲解材料
+- [ ] HongSenYuan 提交 FastText、BERT、优化对比、案例、1 分钟讲解材料和两段演示录屏
 - [ ] 验证 BERT 正常演示与 TF-IDF 轻量备用模型
 - [ ] 验证截图、录屏和静态材料三层降级方案
 - [ ] 完成一次 20 分钟以内的断网彩排
