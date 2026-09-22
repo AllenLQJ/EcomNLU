@@ -1,24 +1,26 @@
 # M5 合并测试报告
 
 - 报告日期：2026-09-22
-- 执行人：HuMingChang
+- 执行人：HuMingChang（合并复核）、LanQvJian（独立产物验收，见第 9 节）
 - 被合并分支：`feature/bert-optimization`（HongSenYuan，tip `ad9197d`）
-- 合并目标分支：`feature/sentiment-baseline`（本分支，合并后 tip `2ec24eb1`）
+- 合并目标分支：`feature/sentiment-baseline`（tip `e351c76`）
+- 验收分支：`fix/m5-quantization-final`（基于 `feature/sentiment-baseline`，已并入最新 `main`，tip `b52d9c9`）
 - 目的：验证 M5 两条并行支线（情感二分类基线 / BERT 优化）能否组合、是否存在冲突与报错
-- 说明：本报告所有数值均来自本机真实运行，未运行的项目在第五节明确标注「未验证」
+- 说明：本报告所有数值均来自本机真实运行，未运行的项目在第六节明确标注「未验证」
 
 ## 1. 结论摘要
 
 | 检查项 | 结果 |
 | --- | --- |
 | 与 `feature/bert-optimization` 的冲突数 | **0** |
-| 与最新 `main` 的冲突数 | **0** |
-| 全量自动化测试 | **Ran 178 tests → OK**（退出码 0） |
-| 模型契约校验 | 5 个模型各 **15/15 通过** |
+| 与最新 `main` 的冲突数 | **0**（`fix/m5-quantization-final` 落后 `main` 为 0） |
+| 全量自动化测试 | **unittest 223 项 OK（跳过 5）/ pytest 220 passed, 3 skipped** |
+| 模型契约校验 | 6 个模型各 **15/15 通过**（含量化产物） |
 | 数据契约校验 | **19/19 通过** |
-| 端到端预测（情感 / 类别） | 均正常，指标与既有报告一致 |
-| 编译与模块导入 | `compileall` 全通过，关键模块导入无异常 |
-| 结论 | **两条 M5 支线可直接组合，未发现冲突，未发现报错** |
+| 量化产物重载与真实预测 | **已独立验证**，见第 9 节 |
+| Web/API 联调（量化类别模型 + 情感模型） | **10/10 通过** |
+| 编译与空白检查 | `compileall` 通过，`git diff --check` 无空白错误 |
+| 结论 | **两条 M5 支线可直接组合；量化产物已完成独立验收** |
 
 ## 2. 合并对象与提交历史
 
@@ -149,17 +151,43 @@ IMPORT OK   src.models.sentiment.report
 
 环境：conda env `AI`，torch 2.6.0+cu124、transformers 5.17.0、fasttext 可用。
 
-## 6. 未验证项（如实标注）
+## 6. 由「未验证」转为「已验证」的项目
 
-以下内容本次**没有**验证，不作为结论：
+本节原先是「未验证项」清单。经 `fix/m5-quantization-final` 分支上的独立验收（2026-09-22，LanQvJian，
+Conda `py310`），原先 5 项中已有 4 项转为已验证，如实更新如下：
 
-1. **BERT 与量化产物的真实推理未在本机复现**。本机 `models/` 下只有 5 个 sklearn 模型（`tfidf_svm` / `tfidf_logreg` / `tfidf_rf` / `sentiment_tfidf_svm` / `sentiment_tfidf_logreg`），没有 `bert_base_chinese` 与 `bert_base_chinese_quantized`（模型权重被 `.gitignore` 排除）。因此：
-   - `src/inference/transformers_adapter.py` 新增的量化加载分支**只做了导入与语法层面的检查**；
-   - `reports/m5-quantization-report.md` 中的量化指标（体积 390.17 → 145.58 MB、test Macro-F1 0.913847 → 0.900508 等）**引用自 HongSenYuan 的报告，本机未复现**。
-2. **未做量化模型的统一入口装载验证**。需要 `models/bert_base_chinese_quantized/` 才能执行，属 M6 部署阶段。
-3. **未做 Web/API 联调**。`src/web/service.py` 的 `SENTIMENT_ENABLED` 仍为 `False`，前端尚未接入情感预测。
-4. **未做跨设备性能复测**。量化报告已明确 fp32 与 int8 的延迟分属 cuda / cpu，本报告不重复引用其性能数字。
-5. **未与 `main` 的最新一次文档提交合并**。远端 `main` 已前进到 `4c2ddc3 docs(presentation): assign demo assets and offline fallback`（仅 3 个文档文件，+229/−2），本分支尚未包含；预演显示无冲突。该提交不涉及代码与测试，不影响本报告结论。
+| 原未验证项 | 现状 |
+| --- | --- |
+| 1. BERT 与量化产物的真实推理未复现 | **已验证**，见第 9 节 |
+| 2. 未做量化模型的统一入口装载验证 | **已验证**：`verify_model_contract.py` 15/15，含「统一入口可加载并推理」 |
+| 3. 未做 Web/API 联调 | **已验证**：量化类别模型 + 情感模型，10/10 通过 |
+| 4. 未做跨设备性能复测 | **未做**（本机无 CUDA）。本次测量全部在 CPU 上进行，fp32 与 int8 同设备可比，见第 9 节 |
+| 5. 未与 `main` 最新提交合并 | **已验证**：`fix/m5-quantization-final` 落后 `origin/main`（`ce13fd4`）为 **0** |
+
+仍未验证的事项：
+
+- **跨设备（CUDA）性能对比**：本机无可用 NVIDIA 设备，只完成 CPU 内的 fp32 / int8 对比。
+- **量化指标与 `reports/m5-quantization-report.md` 原值存在差异**，原因未最终确认（见第 9 节第 4 条）。
+
+## 6.1 环境要求的一处修正（必须记录）
+
+量化保存原先在 `py310` 中必然失败：
+
+```text
+torch.save(state_dict) → transformers/__init__.py 的模块级 __getattr__ 懒加载
+  → 导入 transformers.models.pp_doclayout_v3.image_processing_pp_doclayout_v3
+  → import cv2 → RuntimeError: module compiled against ABI version 0x1000009
+                 but this version of numpy is 0x2000000
+```
+
+**根因**：环境中的 `opencv-python 4.5.5.64` 按 NumPy 1.x ABI 编译，与 NumPy 2.2.6 不兼容。
+**注意卸载不是解法**——该 `import cv2` 无保护，会变成 `ModuleNotFoundError`，同样失败。
+
+**处理**：升级到 `opencv-python 4.14.0.94`（4.10 起才提供 NumPy 2 兼容 wheel），
+并在 `requirements.txt` 中显式加入 `opencv-python>=4.10,<5.0` 及原因注释，使其可复现。
+
+**本次验收记录的环境**：Python 3.10.20、numpy 2.2.6、torch 2.12.0+cpu、transformers 5.16.1、
+opencv-python 4.14.0、scikit-learn 1.7.2、设备 CPU。
 
 ## 7. 风险与建议
 
@@ -190,3 +218,81 @@ python scripts/predict_svm.py --eval test
 > 本机提交说明：该仓库所在环境的 git 引用事务写入不可靠（`git commit` 可能产生孤立根提交），因此合并统一采用
 > `git merge --no-commit` 解冲突 + `git write-tree` + `git commit-tree -p <父1> -p <父2>` 显式建对象的方式，
 > 再直接写引用文件，最后用 `git log --oneline -3` 复核父提交。本报告中的 tree 哈希可用于独立核对。
+
+## 9. 量化产物的独立验收记录（LanQvJian，2026-09-22）
+
+在 `fix/m5-quantization-final` 分支上，用 Conda `py310` 重建并独立验收量化产物。
+所有数字来自实际运行，未沿用既有报告结论。
+
+### 9.1 产物
+
+```text
+models/bert_base_chinese_quantized/
+├── model/quantized_state_dict.pt    149,068.8 KB（145.6 MB）
+├── model/config.json
+├── tokenizer/{tokenizer.json,tokenizer_config.json}
+├── label_mapping.json
+├── metadata.json
+└── metrics.json
+```
+
+### 9.2 模型契约
+
+```text
+python scripts/verify_model_contract.py models/bert_base_chinese_quantized
+→ 通过 15 项，失败 0 项，跳过 0 项
+```
+
+其中「统一入口可加载并推理」为真实执行，非跳过。
+
+### 9.3 真实重载与预测
+
+```text
+python scripts/predict.py --model models/bert_base_chinese_quantized \
+  --text "这本书内容很好，印刷清晰，非常值得推荐" --top-k 3
+→ 书籍 0.9992（Top-3：书籍 0.9992 / 平板 0.0001 / 洗发水 0.0001）
+
+python scripts/predict.py --model models/bert_base_chinese_quantized \
+  --text "酒店的床单有异味，前台态度也不好" --top-k 3
+→ 酒店 0.9997（Top-3：酒店 0.9997 / 衣服 0.0001 / 蒙牛 0.0000）
+```
+
+### 9.4 量化前后对比（本次实测）
+
+| 指标 | fp32 源模型 | int8 量化模型 |
+| --- | ---: | ---: |
+| 体积 | 409,126,369 字节（390.2 MB） | 152,647,957 字节（145.6 MB） |
+| dev Macro-F1 | 0.912276 | 0.904306 |
+| test Macro-F1 | 0.913847 | 0.902649 |
+| CPU 单条延迟 | 59.44 ms | 33.11 ms |
+| CPU 批 32 延迟 | 721.22 ms | 463.02 ms |
+| 量化 Linear 层 | — | 74 |
+
+结论：体积降至 37.3%，CPU 单条延迟降至 55.7%，dev Macro-F1 下降 0.0080、test 下降 0.0112。
+
+**与原报告的差异必须记录**：fp32 指标与 `reports/m5-quantization-report.md`
+**完全一致**（0.912276 / 0.913847），说明数据划分与评估口径相同；但**量化后指标不同**
+（原报告 dev 0.904659、test 0.900508）。最可能的原因是 **torch 版本差异**——原报告环境为
+torch 2.6.0+cu124，本次为 2.12.0+cpu，动态量化的行为会随版本变化。该差异**尚未最终确认**，
+引用量化指标时必须连同运行环境一起标注，不得把两个环境的数值混写成同一次实验。
+
+### 9.5 Web/API 联调
+
+以量化模型为主类别模型、`sentiment_tfidf_svm` 为情感模型启动服务，**10/10 通过**：
+
+| 检查 | 结果 |
+| --- | --- |
+| `GET /api/health` | 200，`model_name=bert_base_chinese_quantized`，`sentiment_enabled=true` |
+| 「这本书内容很好…」 | 书籍 0.9992 / 情感 正向 / 67.3 ms |
+| 「酒店的床单有异味…」 | 酒店 0.9997 / 情感 负向 / 41.6 ms |
+| 「这款手机很好用…」top_k=5 | 返回 5 条，概率降序 |
+| 空输入 / 超长 / 非法 top_k | 分别返回 `EMPTY_REVIEW` / `REVIEW_TOO_LONG` / `INVALID_TOP_K` |
+
+### 9.6 本次修复的两个产物缺陷
+
+| 缺陷 | 修复 |
+| --- | --- |
+| `metadata.model_name` 为 `bert_base_chinese`，与目录名 `bert_base_chinese_quantized` 不一致（契约 §2.3 要求一致） | `save_quantized_model` 改为取目标目录名 |
+| `quantization.source_model_dir` 写入本机绝对路径（AGENTS.md §7.1 禁止） | 新增 `_as_project_relative()`，转为相对项目根的 POSIX 路径；项目外路径保留原值 |
+
+同时新增 `tests/test_quantization.py`（9 项）——量化模块此前无任何测试覆盖。

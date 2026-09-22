@@ -20,6 +20,15 @@ torch>=2.2
 transformers>=4.40,<6.0
 tqdm>=4.66,<5.0
 
+# 本项目不直接使用 OpenCV，但 transformers 5.x 的模块级 __getattr__ 懒加载会在
+# torch.save() 序列化 state_dict 时链式导入一个视觉模型（pp_doclayout_v3），
+# 该模块 `import cv2`。缺了它或版本过旧都会让量化保存失败：
+#   - 未安装          -> ModuleNotFoundError: No module named 'cv2'
+#   - < 4.10（按 NumPy 1.x ABI 编译）-> RuntimeError: module compiled against
+#     ABI version 0x1000009 but this version of numpy is 0x2000000
+# 4.10 起才提供 NumPy 2 兼容的 wheel，因此这里显式约束下限。
+opencv-python>=4.10,<5.0
+
 # Web and configuration
 fastapi>=0.110,<1.0
 uvicorn[standard]>=0.29,<1.0

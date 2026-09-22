@@ -21,7 +21,7 @@
     "method": "torch.quantization.quantize_dynamic",
     "dtype": "qint8",
     "dynamic_linear_layers": 74,
-    "quantize_seconds": 3.3
+    "quantize_seconds": 0.98
   },
   "parameters": {
     "source": 102275338,
@@ -44,14 +44,28 @@
       {
         "text": "手机电池续航很差，用了一天就没电了",
         "predicted_index": 1,
-        "confidence": 0.998585
+        "confidence": 0.998584
       },
       {
         "text": "酒店的床单有异味，前台态度也不好",
         "predicted_index": 9,
-        "confidence": 0.999716
+        "confidence": 0.999746
       }
     ]
+  },
+  "cpu_cost": {
+    "fp32": {
+      "device": "cpu",
+      "single_sample_latency_ms": 59.44,
+      "batch_32_latency_ms": 721.22,
+      "throughput_per_sec": 44.4
+    },
+    "int8": {
+      "device": "cpu",
+      "single_sample_latency_ms": 33.11,
+      "batch_32_latency_ms": 463.02,
+      "throughput_per_sec": 69.1
+    }
   },
   "metrics": {
     "dev": {
@@ -245,57 +259,57 @@
             990
           ]
         ],
-        "elapsed_seconds": 34.009,
+        "elapsed_seconds": 1025.889,
         "cost": {
           "model_size_bytes": 409126369,
-          "single_sample_latency_ms": 20.325,
-          "batch_32_latency_ms": 237.708,
-          "throughput_per_sec": 134.6,
-          "measured_on": "cuda",
-          "measured_at": "2026-09-21T20:56:47+08:00"
+          "single_sample_latency_ms": 140.81,
+          "batch_32_latency_ms": 6875.754,
+          "throughput_per_sec": 4.7,
+          "measured_on": "cpu",
+          "measured_at": "2026-09-22T10:38:44+08:00"
         }
       },
       "quantized": {
-        "accuracy": 0.913931,
-        "macro_precision": 0.918215,
-        "macro_recall": 0.895653,
-        "macro_f1": 0.904659,
-        "weighted_f1": 0.914163,
+        "accuracy": 0.912655,
+        "macro_precision": 0.916498,
+        "macro_recall": 0.896205,
+        "macro_f1": 0.904306,
+        "weighted_f1": 0.912956,
         "per_class": {
           "书籍": {
-            "precision": 0.97389,
+            "precision": 0.97644,
             "recall": 0.968831,
-            "f1": 0.971354,
+            "f1": 0.972621,
             "support": 385
           },
           "平板": {
-            "precision": 0.852792,
-            "recall": 0.84,
-            "f1": 0.846348,
+            "precision": 0.852192,
+            "recall": 0.836,
+            "f1": 0.844018,
             "support": 1000
           },
           "手机": {
-            "precision": 0.903509,
+            "precision": 0.88412,
             "recall": 0.887931,
-            "f1": 0.895652,
+            "f1": 0.886022,
             "support": 232
           },
           "水果": {
-            "precision": 0.958904,
-            "recall": 0.91,
-            "f1": 0.933812,
+            "precision": 0.960847,
+            "recall": 0.908,
+            "f1": 0.933676,
             "support": 1000
           },
           "洗发水": {
-            "precision": 0.82326,
-            "recall": 0.899,
-            "f1": 0.859465,
+            "precision": 0.819672,
+            "recall": 0.9,
+            "f1": 0.85796,
             "support": 1000
           },
           "热水器": {
-            "precision": 0.853659,
-            "recall": 0.614035,
-            "f1": 0.714286,
+            "precision": 0.857143,
+            "recall": 0.631579,
+            "f1": 0.727273,
             "support": 57
           },
           "蒙牛": {
@@ -305,15 +319,15 @@
             "support": 203
           },
           "衣服": {
-            "precision": 0.920202,
-            "recall": 0.911912,
-            "f1": 0.916038,
+            "precision": 0.91911,
+            "recall": 0.90991,
+            "f1": 0.914487,
             "support": 999
           },
           "计算机": {
-            "precision": 0.9,
-            "recall": 0.949749,
-            "f1": 0.924205,
+            "precision": 0.899522,
+            "recall": 0.944724,
+            "f1": 0.921569,
             "support": 398
           },
           "酒店": {
@@ -326,10 +340,10 @@
         "confusion_matrix": [
           [
             373,
-            2,
-            2,
-            0,
             4,
+            1,
+            0,
+            3,
             0,
             0,
             1,
@@ -338,62 +352,62 @@
           ],
           [
             1,
-            840,
-            9,
+            836,
+            12,
             7,
-            87,
-            2,
+            89,
+            3,
             0,
-            27,
+            25,
             25,
             2
           ],
           [
             0,
-            18,
+            16,
             206,
             0,
             0,
             0,
             0,
             0,
-            8,
-            0
-          ],
-          [
-            1,
-            18,
-            0,
-            910,
-            59,
-            0,
-            0,
             10,
-            2,
             0
           ],
           [
-            3,
-            43,
             1,
-            23,
-            899,
-            3,
+            17,
             0,
-            26,
+            908,
+            61,
+            0,
+            0,
+            12,
+            1,
+            0
+          ],
+          [
+            4,
+            42,
+            1,
+            20,
+            900,
+            2,
+            0,
+            29,
             2,
             0
           ],
           [
-            1,
+            0,
             8,
             2,
-            0,
+            1,
             2,
-            35,
+            36,
             0,
             7,
-            2,
+            1,
             0
           ],
           [
@@ -409,50 +423,50 @@
             1
           ],
           [
+            2,
+            40,
             3,
-            38,
-            3,
-            8,
+            9,
             35,
             1,
             0,
-            911,
+            909,
             0,
             0
           ],
           [
             0,
-            11,
+            12,
             2,
-            1,
-            4,
-            0,
-            0,
-            2,
-            378,
-            0
-          ],
-          [
-            1,
-            7,
-            3,
-            0,
-            2,
-            0,
             0,
             6,
+            0,
+            0,
+            2,
+            376,
+            0
+          ],
+          [
+            1,
+            6,
+            6,
+            0,
+            2,
+            0,
+            0,
+            4,
             1,
             980
           ]
         ],
-        "elapsed_seconds": 626.85,
+        "elapsed_seconds": 398.523,
         "cost": {
           "model_size_bytes": 152647957,
-          "single_sample_latency_ms": 121.624,
-          "batch_32_latency_ms": 5132.288,
-          "throughput_per_sec": 6.2,
+          "single_sample_latency_ms": 57.958,
+          "batch_32_latency_ms": 2042.363,
+          "throughput_per_sec": 15.7,
           "measured_on": "cpu",
-          "measured_at": "2026-09-21T21:08:14+08:00"
+          "measured_at": "2026-09-22T10:44:14+08:00"
         }
       }
     },
@@ -647,44 +661,44 @@
             990
           ]
         ],
-        "elapsed_seconds": 34.06,
+        "elapsed_seconds": 1019.99,
         "cost": {}
       },
       "quantized": {
-        "accuracy": 0.910874,
-        "macro_precision": 0.917373,
-        "macro_recall": 0.889607,
-        "macro_f1": 0.900508,
-        "weighted_f1": 0.910915,
+        "accuracy": 0.913425,
+        "macro_precision": 0.919393,
+        "macro_recall": 0.89169,
+        "macro_f1": 0.902649,
+        "weighted_f1": 0.913445,
         "per_class": {
           "书籍": {
-            "precision": 0.973822,
+            "precision": 0.971279,
             "recall": 0.966234,
-            "f1": 0.970013,
+            "f1": 0.96875,
             "support": 385
           },
           "平板": {
-            "precision": 0.834669,
-            "recall": 0.833,
-            "f1": 0.833834,
+            "precision": 0.841046,
+            "recall": 0.836,
+            "f1": 0.838516,
             "support": 1000
           },
           "手机": {
-            "precision": 0.943662,
-            "recall": 0.866379,
-            "f1": 0.903371,
+            "precision": 0.935185,
+            "recall": 0.87069,
+            "f1": 0.901786,
             "support": 232
           },
           "水果": {
-            "precision": 0.945304,
-            "recall": 0.916917,
-            "f1": 0.930894,
+            "precision": 0.954357,
+            "recall": 0.920921,
+            "f1": 0.937341,
             "support": 999
           },
           "洗发水": {
-            "precision": 0.833022,
-            "recall": 0.893894,
-            "f1": 0.862385,
+            "precision": 0.832562,
+            "recall": 0.900901,
+            "f1": 0.865385,
             "support": 999
           },
           "热水器": {
@@ -700,96 +714,96 @@
             "support": 203
           },
           "衣服": {
-            "precision": 0.920945,
+            "precision": 0.918117,
             "recall": 0.897898,
-            "f1": 0.909275,
+            "f1": 0.907895,
             "support": 999
           },
           "计算机": {
-            "precision": 0.882217,
-            "recall": 0.959799,
-            "f1": 0.919374,
+            "precision": 0.903302,
+            "recall": 0.962312,
+            "f1": 0.931873,
             "support": 398
           },
           "酒店": {
-            "precision": 0.993933,
+            "precision": 0.991927,
             "recall": 0.983,
-            "f1": 0.988436,
+            "f1": 0.987443,
             "support": 1000
           }
         },
         "confusion_matrix": [
           [
             372,
-            4,
-            2,
-            0,
             3,
-            0,
-            0,
             2,
             0,
-            2
+            4,
+            0,
+            0,
+            1,
+            0,
+            3
           ],
           [
-            1,
-            833,
+            2,
+            836,
             9,
-            17,
-            73,
+            13,
+            76,
             3,
             0,
-            33,
-            31,
+            35,
+            26,
             0
           ],
           [
             1,
-            16,
-            201,
+            17,
+            202,
             0,
             0,
             1,
             0,
             1,
-            11,
+            9,
             1
           ],
           [
             1,
-            14,
+            13,
             0,
-            916,
-            56,
-            1,
+            920,
+            53,
+            0,
             0,
             11,
             0,
-            0
+            1
           ],
           [
             2,
-            56,
+            52,
             0,
-            19,
-            893,
+            16,
+            900,
+            1,
             0,
-            0,
-            20,
-            6,
-            3
+            22,
+            4,
+            2
           ],
           [
             0,
-            11,
-            0,
+            9,
             1,
-            5,
+            1,
+            6,
             33,
             0,
-            7,
+            6,
             0,
-            0
+            1
           ],
           [
             0,
@@ -804,59 +818,45 @@
             0
           ],
           [
-            1,
+            2,
             48,
             0,
-            14,
-            37,
+            12,
+            39,
             1,
             0,
             897,
-            1,
+            0,
             0
           ],
           [
-            1,
-            7,
+            0,
+            8,
             1,
             2,
-            4,
+            3,
             0,
             0,
             1,
-            382,
+            383,
             0
           ],
           [
             3,
-            9,
-            0,
-            0,
+            8,
             1,
             0,
             0,
-            2,
+            0,
+            0,
+            3,
             2,
             983
           ]
         ],
-        "elapsed_seconds": 654.275,
+        "elapsed_seconds": 315.661,
         "cost": {}
       }
-    }
-  },
-  "cpu_cost": {
-    "fp32": {
-      "device": "cpu",
-      "single_sample_latency_ms": 70.88,
-      "batch_32_latency_ms": 960.62,
-      "throughput_per_sec": 33.3
-    },
-    "int8": {
-      "device": "cpu",
-      "single_sample_latency_ms": 64.92,
-      "batch_32_latency_ms": 583.87,
-      "throughput_per_sec": 54.8
     }
   }
 }

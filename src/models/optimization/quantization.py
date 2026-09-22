@@ -36,6 +36,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from src.data.config import PROJECT_ROOT
 from src.evaluation.metrics import directory_size_bytes
 
 
@@ -49,6 +50,19 @@ QUANTIZED_MODULE_TYPES = ("Linear",)
 
 class QuantizationError(RuntimeError):
     """量化流程中的可预期错误。"""
+
+
+def _as_project_relative(path: Path) -> str:
+    """把路径表示为相对项目根目录的 POSIX 形式。
+
+    AGENTS.md §7.1 禁止在产物里写入 ``D:\\...`` 这类个人电脑绝对路径：它会随产物
+    被队友拿到，既无法复现、也泄露本机目录结构。路径不在项目根目录内时保留原值，
+    避免静默写出一条错误的相对路径。
+    """
+    try:
+        return path.resolve().relative_to(PROJECT_ROOT).as_posix()
+    except ValueError:
+        return str(path)
 
 
 def _require_torch() -> Any:
@@ -180,13 +194,16 @@ def save_quantized_model(
         shutil.copy2(source / name, target / name)
 
     metadata = json.loads((target / "metadata.json").read_text(encoding="utf-8"))
+    # 优化产物的目录名是 <源模型>_<优化方式>，metadata 里的 model_name 必须跟着改，
+    # 否则元数据与目录名不一致，会让对比报告和 Web 层读出两个不同的模型名。
+    metadata["model_name"] = target.name
     metadata["quantization"] = {
         "method": "torch.quantization.quantize_dynamic",
         "quantized_module_types": list(QUANTIZED_MODULE_TYPES),
         "dtype": "qint8",
         "target_device": "cpu",
         "weights_file": f"model/{QUANTIZED_WEIGHTS_NAME}",
-        "source_model_dir": str(source),
+        "source_model_dir": _as_project_relative(source),
     }
     (target / "metadata.json").write_text(
         json.dumps(metadata, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
