@@ -21,6 +21,7 @@ DEFAULT_MAX_REVIEW_CHARS = 2000
 DEFAULT_TOP_K = 3
 MAX_TOP_K = 10
 MODEL_DIR_ENV = "WEB_MODEL_DIR"
+SENTIMENT_MODEL_DIR_ENV = "WEB_SENTIMENT_MODEL_DIR"
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,8 @@ class WebConfig:
     categories: list[str] = field(default_factory=list)
     max_review_chars: int = DEFAULT_MAX_REVIEW_CHARS
     model_dir: Path | None = None
+    #: 情感任务模型目录（M5）。为 ``None`` 时契约 §3.3 要求 ``sentiment`` 返回 ``null``。
+    sentiment_model_dir: Path | None = None
     default_top_k: int = DEFAULT_TOP_K
     max_top_k: int = MAX_TOP_K
 
@@ -40,12 +43,12 @@ class WebConfig:
 
 
 def _resolve_model_dir(
-    explicit: str | Path | None, configured: object
+    explicit: str | Path | None, configured: object, env_var: str = MODEL_DIR_ENV
 ) -> Path | None:
     """确定模型目录：显式参数 > 环境变量 > 配置文件。"""
     candidate: str | Path | None = explicit
     if candidate is None:
-        candidate = os.environ.get(MODEL_DIR_ENV) or None
+        candidate = os.environ.get(env_var) or None
     if candidate is None and isinstance(configured, str) and configured.strip():
         candidate = configured.strip()
     if candidate is None:
@@ -54,7 +57,9 @@ def _resolve_model_dir(
 
 
 def load_web_config(
-    config_path: str | Path | None = None, model_dir: str | Path | None = None
+    config_path: str | Path | None = None,
+    model_dir: str | Path | None = None,
+    sentiment_model_dir: str | Path | None = None,
 ) -> WebConfig:
     """读取并校验 Web 层配置。"""
     path = Path(config_path) if config_path is not None else DEFAULT_CONFIG_PATH
@@ -90,4 +95,9 @@ def load_web_config(
         categories=[name.strip() for name in categories],
         max_review_chars=max_review_chars,
         model_dir=_resolve_model_dir(model_dir, api_section.get("model_dir")),
+        sentiment_model_dir=_resolve_model_dir(
+            sentiment_model_dir,
+            api_section.get("sentiment_model_dir"),
+            env_var=SENTIMENT_MODEL_DIR_ENV,
+        ),
     )

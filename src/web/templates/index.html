@@ -91,7 +91,9 @@
                       aria-describedby="char-count"
                       placeholder="例如：这款手机很好用，电池耐用，拍照也很清晰。"></textarea>
 
-            <div class="counter"><span id="char-count">0 / 2000</span></div>
+            <!-- 计数器自身承载 counter 基础类；updateCounter() 只增删 counter--over，
+                 不重建整个 class，避免基础样式被覆盖。 -->
+            <div id="char-count" class="counter">0 / 2000</div>
 
             <div class="controls">
               <label class="controls__label" for="top-k">Top-K</label>
@@ -185,11 +187,13 @@
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.5"></circle><path d="M8.8 14.2a4 4 0 0 0 6.4 0"></path><path d="M9.3 9.6h.01M14.7 9.6h.01"></path></svg>
             情感分析
           </h2>
+          <!-- 初始为「尚未分析」状态；服务是否具备情感能力由 /api/health 的
+               sentiment_enabled 决定，脚本会在健康检查返回后更新此处。 -->
           <div id="sentiment" class="sentiment sentiment--off">
             <span class="sentiment__mark" aria-hidden="true">—</span>
             <span class="sentiment__text">
-              <span id="sentiment-label">尚未启用</span>
-              <span id="sentiment-note" class="sentiment__note">完成 M5 后开放</span>
+              <span id="sentiment-label">分析后显示</span>
+              <span id="sentiment-note" class="sentiment__note">提交评论后返回情感倾向</span>
             </span>
           </div>
         </section>

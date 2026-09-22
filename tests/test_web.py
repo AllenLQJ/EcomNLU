@@ -44,11 +44,42 @@ class FakePredictor:
         return results
 
 
+class FakeSentimentPredictor:
+    """确定性假情感预测器；标签集可覆盖，用于验证标签校验。"""
+
+    def __init__(self, labels: tuple[str, ...] = ("负向", "正向")) -> None:
+        self.categories = list(labels)
+
+    def predict_proba(self, texts: list[str]) -> list[dict[str, float]]:
+        primary = self.categories[0]
+        secondary = self.categories[1] if len(self.categories) > 1 else self.categories[0]
+        return [{primary: 0.75, secondary: 0.25} for _ in texts]
+
+
 @contextmanager
 def client_with_fake_model():
     """构造一个模型已加载的客户端，不触碰真实模型产物。"""
     with patch("src.web.service.load_predictor", return_value=FakePredictor()):
         with TestClient(create_app(model_dir=Path("fake_model"))) as client:
+            yield client
+
+
+@contextmanager
+def client_with_sentiment(labels: tuple[str, ...] = ("负向", "正向")):
+    """主任务 + 情感任务都已加载的客户端。"""
+
+    def fake_load(model_dir):
+        if "sentiment" in Path(model_dir).name:
+            return FakeSentimentPredictor(labels)
+        return FakePredictor()
+
+    with patch("src.web.service.load_predictor", side_effect=fake_load):
+        with TestClient(
+            create_app(
+                model_dir=Path("fake_model"),
+                sentiment_model_dir=Path("fake_sentiment_model"),
+            )
+        ) as client:
             yield client
 
 
@@ -172,8 +203,8 @@ class PredictTests(unittest.TestCase):
         self.assertEqual(body["model_name"], "fake_model")
         self.assertGreater(body["elapsed_ms"], 0)
 
-    def test_sentiment_is_null_and_present_before_m5(self) -> None:
-        """契约 §3.3：M5 完成前该字段固定为 null，**不得省略**。"""
+    def test_sentiment_field_is_present_and_null_without_a_sentiment_model(self) -> None:
+        """契约 §3.3：未配置情感模型时该字段为 null，但**不得省略**。"""
         with client_with_fake_model() as client:
             body = client.post("/api/predict", json={"review": "手机很好用"}).json()
         self.assertIn("sentiment", body)
@@ -201,6 +232,56 @@ class PredictTests(unittest.TestCase):
                 "/api/predict", json={"review": "手机很好用", "top_k": CONFIG.max_top_k}
             )
         self.assertEqual(response.status_code, 200, response.text)
+
+
+class SentimentTests(unittest.TestCase):
+    """M5 情感任务接入后，契约 §3.3 的 ``sentiment`` 字段行为。"""
+
+    def test_health_reports_sentiment_enabled(self) -> None:
+        with client_with_sentiment() as client:
+            response = client.get("/api/health")
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["sentiment_enabled"])
+
+    def test_health_reports_sentiment_disabled_without_the_model(self) -> None:
+        with client_with_fake_model() as client:
+            body = client.get("/api/health").json()
+        self.assertFalse(body["sentiment_enabled"])
+
+    def test_predict_returns_a_contract_shaped_sentiment_object(self) -> None:
+        with client_with_sentiment() as client:
+            body = client.post("/api/predict", json={"review": "质量太差了"}).json()
+        sentiment = body["sentiment"]
+        self.assertIsNotNone(sentiment)
+        self.assertEqual(set(sentiment), {"label", "confidence"})
+        self.assertIn(sentiment["label"], ("负向", "正向"))
+        self.assertGreaterEqual(sentiment["confidence"], 0.0)
+        self.assertLessEqual(sentiment["confidence"], 1.0)
+
+    def test_sentiment_label_is_the_highest_probability_one(self) -> None:
+        """假预测器把 0.75 给了 ``负向``，应取最高概率项。"""
+        with client_with_sentiment() as client:
+            sentiment = client.post("/api/predict", json={"review": "很好"}).json()["sentiment"]
+        self.assertEqual(sentiment["label"], "负向")
+
+    def test_wrong_sentiment_label_set_is_rejected(self) -> None:
+        """标签集不符契约 v1.2 §2.1 时必须拒绝启用，而不是输出错位的标签。"""
+        with client_with_sentiment(labels=("负面", "正面")) as client:
+            self.assertFalse(client.get("/api/health").json()["sentiment_enabled"])
+            body = client.post("/api/predict", json={"review": "很好"}).json()
+        self.assertIsNone(body["sentiment"])
+
+    def test_sentiment_does_not_change_the_category_result(self) -> None:
+        """接入情感不得影响类别预测与 top_k 行为。"""
+        with client_with_fake_model() as plain, client_with_sentiment() as enriched:
+            without = plain.post("/api/predict", json={"review": "手机很好用", "top_k": 4}).json()
+            with_sentiment = enriched.post(
+                "/api/predict", json={"review": "手机很好用", "top_k": 4}
+            ).json()
+        self.assertEqual(without["category"], with_sentiment["category"])
+        self.assertEqual(without["top_k"], with_sentiment["top_k"])
+        self.assertIsNone(without["sentiment"])
+        self.assertIsNotNone(with_sentiment["sentiment"])
 
 
 if __name__ == "__main__":

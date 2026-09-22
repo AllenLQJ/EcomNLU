@@ -7,7 +7,10 @@
 
 from __future__ import annotations
 
+import json
 import re
+import shutil
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -25,6 +28,29 @@ from src.web.app import STATIC_DIR, TEMPLATES_DIR  # noqa: E402
 
 CONFIG = load_web_config()
 CONTRACT_ENDPOINTS = {"/api/health", "/api/categories", "/api/predict"}
+
+#: Node 仅作为**测试期**的 JS 执行环境；前端运行时本身不依赖 Node。
+#: 未安装时相关用例自动跳过，不影响其余测试。
+NODE = shutil.which("node")
+DOM_HARNESS = PROJECT_ROOT / "tests" / "js_dom_check.js"
+
+_DOM_RESULT: dict | None = None
+
+
+def dom_result() -> dict:
+    """运行 DOM 检查脚本并缓存结果（整个测试会话只跑一次 Node）。"""
+    global _DOM_RESULT
+    if _DOM_RESULT is None:
+        completed = subprocess.run(
+            [NODE, str(DOM_HARNESS), str(CONFIG.max_review_chars), *CONFIG.categories],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+        if completed.returncode != 0:
+            raise AssertionError(f"DOM 检查脚本执行失败：\n{completed.stderr}")
+        _DOM_RESULT = json.loads(completed.stdout)
+    return _DOM_RESULT
 
 #: 页面必须存在的交互区域（说明书 §10.1）。
 REQUIRED_ANCHORS = {
@@ -116,6 +142,12 @@ class IndexContentTests(FrontendTestCase):
         match = re.search(r'id="review"[^>]*\bmaxlength="(\d+)"', self.index_html)
         self.assertIsNotNone(match, "输入框缺少 maxlength 属性")
         self.assertEqual(int(match.group(1)), CONFIG.max_review_chars)
+
+    def test_counter_element_carries_base_class(self) -> None:
+        """计数器元素自身必须声明 counter 基础类，不能依赖外层容器。"""
+        match = re.search(r'<[a-z]+[^>]*\bid="char-count"[^>]*\bclass="([^"]*)"', self.index_html)
+        self.assertIsNotNone(match, "未找到带 class 的字符计数器元素")
+        self.assertIn("counter", match.group(1).split(), match.group(1))
 
     def test_no_external_resources(self) -> None:
         """说明书 §10.1：页面不得引用 CDN 或任何外部资源。"""
@@ -215,6 +247,74 @@ class StyleTests(FrontendTestCase):
 
     def test_defines_visible_focus_style(self) -> None:
         self.assertIn(":focus-visible", self.css)
+
+
+@unittest.skipUnless(NODE, "未安装 Node，跳过 JS DOM 行为测试")
+class CounterClassTests(unittest.TestCase):
+    """字符计数器在任何状态下都必须保留 ``counter`` 基础类。
+
+    回归背景：``updateCounter()`` 曾经直接 ``className = 'counter--over' : ''``，
+    把基础类整个覆盖掉，右对齐等样式随之失效。改由 DOM 实际执行后断言，
+    而不是对源码做字符串匹配。
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.counter = dom_result()["counter"]
+
+    def test_base_class_survives_in_every_state(self) -> None:
+        for state in ("initial", "normal", "overLimit"):
+            with self.subTest(state=state):
+                classes = self.counter[state]["className"].split()
+                self.assertIn("counter", classes, self.counter[state])
+
+    def test_state_class_only_when_over_the_limit(self) -> None:
+        self.assertIn("counter--over", self.counter["overLimit"]["className"].split())
+        for state in ("initial", "normal"):
+            with self.subTest(state=state):
+                self.assertNotIn("counter--over", self.counter[state]["className"].split())
+
+    def test_counter_text_tracks_length(self) -> None:
+        limit = CONFIG.max_review_chars
+        self.assertEqual(self.counter["initial"]["text"], f"0 / {limit}")
+        self.assertEqual(self.counter["overLimit"]["text"], f"{limit + 1} / {limit}")
+
+
+@unittest.skipUnless(NODE, "未安装 Node，跳过 JS DOM 行为测试")
+class DialogStructureTests(unittest.TestCase):
+    """帮助与关于弹窗的列表结构必须合法。
+
+    回归背景：``el('ul').appendChild(el('li'))`` 返回的是 ``li`` 而非 ``ul``，
+    导致弹窗容器下直接挂着裸 ``<li>``。
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.dialog = dom_result()["dialog"]
+
+    def test_no_bare_li_under_the_dialog_container(self) -> None:
+        for dialog_name, count in self.dialog["directLiUnderContainer"].items():
+            with self.subTest(dialog=dialog_name):
+                self.assertEqual(count, 0, f"{dialog_name} 弹窗容器下有 {count} 个裸 <li>")
+
+    def test_help_common_errors_list(self) -> None:
+        self.assertTrue(self.dialog["helpErrorListIsUl"], "「常见错误」后应紧跟一个 <ul>")
+        self.assertEqual(len(self.dialog["helpErrorItems"]), 3, self.dialog["helpErrorItems"])
+
+    def test_about_team_list(self) -> None:
+        self.assertTrue(self.dialog["aboutTeamListIsUl"], "「团队分工」后应紧跟一个 <ul>")
+        self.assertEqual(len(self.dialog["aboutTeamItems"]), 3, self.dialog["aboutTeamItems"])
+
+    def test_about_category_list_matches_config(self) -> None:
+        self.assertTrue(self.dialog["aboutCategoryListIsUl"], "「类别范围」后应紧跟一个 <ul>")
+        self.assertEqual(self.dialog["aboutCategoryItems"], CONFIG.categories)
+
+    def test_container_children_are_only_headings_paragraphs_and_lists(self) -> None:
+        allowed = {"H3", "P", "UL"}
+        for dialog_name in ("helpChildTags", "aboutChildTags"):
+            with self.subTest(dialog=dialog_name):
+                tags = set(self.dialog[dialog_name])
+                self.assertLessEqual(tags, allowed, self.dialog[dialog_name])
 
 
 if __name__ == "__main__":

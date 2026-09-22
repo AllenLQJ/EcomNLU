@@ -325,6 +325,15 @@ function loadHealth() {
     }
     var kind = classifyHealth(result.status, result.body);
     renderServiceStatus(kind);
+
+    if (result.body && typeof result.body.sentiment_enabled === 'boolean') {
+      sentimentEnabled = result.body.sentiment_enabled;
+    }
+    // 还没有结果时，情感卡片按服务实际能力显示；已有结果则保持不动。
+    if (dom['category-body'].hidden) {
+      renderSentiment(null);
+    }
+
     if (kind === 'degraded') {
       // 契约 §3.2：模型未加载时返回 503，属可预期的降级状态，不是故障。
       showAlert('模型尚未加载：可以浏览页面，但预测会返回 MODEL_NOT_LOADED。');
@@ -391,12 +400,26 @@ function renderTopK(items, k) {
   });
 }
 
+/**
+ * 渲染情感状态。
+ *
+ * ``sentiment === null`` 有两种含义，文案必须区分，否则会误导：
+ * - **尚未分析**：还没提交过请求，此时不该说「未启用」；
+ * - **服务未配置情感模型**：健康检查的 ``sentiment_enabled`` 为 false。
+ *
+ * 无论哪种情况都如实呈现，前端不根据评论内容推断情感。
+ */
 function renderSentiment(sentiment) {
   var box = dom.sentiment;
   if (!sentiment) {
     box.className = 'sentiment sentiment--off';
-    setText(dom['sentiment-label'], '尚未启用');
-    setText(dom['sentiment-note'], '完成 M5 后开放');
+    if (sentimentEnabled) {
+      setText(dom['sentiment-label'], '分析后显示');
+      setText(dom['sentiment-note'], '提交评论后返回情感倾向');
+    } else {
+      setText(dom['sentiment-label'], '尚未启用');
+      setText(dom['sentiment-note'], '服务未配置情感模型');
+    }
     return;
   }
   var negative = sentiment.label === '负向';
@@ -434,6 +457,9 @@ function renderApiDetails(requestBody, responseBody) {
    ========================================================================== */
 
 var submitting = false;
+
+/** 情感任务是否可用，取自 /api/health 的 sentiment_enabled；不写死。 */
+var sentimentEnabled = false;
 
 function setSubmitting(value) {
   submitting = value;
@@ -551,12 +577,29 @@ function updateCounter() {
   var limit = maxReviewChars();
   var used = codePointLength(dom.review.value);
   setText(dom['char-count'], used + ' / ' + limit);
-  dom['char-count'].className = used > limit ? 'counter--over' : '';
+  // 基础类 counter 必须始终保留，只切换状态类；直接赋 '' 会把右对齐等
+  // 基础样式一起清掉。
+  dom['char-count'].className = used > limit ? 'counter counter--over' : 'counter';
 }
 
 /* ==========================================================================
    弹窗内容
    ========================================================================== */
+
+/**
+ * 构造一个 ``<ul>``，其下为若干 ``<li>``。
+ *
+ * 注意不要写成 ``el('ul').appendChild(el('li'))``——``appendChild`` 返回的是
+ * **被插入的子节点**（即 ``li``），不是 ``ul``，那样会把裸 ``<li>`` 直接挂到
+ * 弹窗容器下，产生非法列表结构。
+ */
+function listOf(items) {
+  var list = el('ul', null, null);
+  items.forEach(function (text) {
+    list.appendChild(el('li', null, text));
+  });
+  return list;
+}
 
 function buildHelpNodes() {
   var limit = maxReviewChars();
@@ -568,47 +611,28 @@ function buildHelpNodes() {
     el('p', null, 'Top-K 表示返回概率最高的前 K 个类别，取值范围 1 到 10，默认 3。' +
       '概率条按接口返回的顺序展示，第一行即预测类别。'),
     el('h3', null, '常见错误'),
-    el('ul', null, null).appendChild(el('li', null, '评论内容不能为空（EMPTY_REVIEW）')),
-    el('ul', null, null).appendChild(el('li', null, '模型尚未加载（MODEL_NOT_LOADED）')),
-    el('ul', null, null).appendChild(el('li', null, '服务内部错误（INTERNAL_ERROR）'))
+    listOf([
+      '评论内容不能为空（EMPTY_REVIEW）',
+      '模型尚未加载（MODEL_NOT_LOADED）',
+      '服务内部错误（INTERNAL_ERROR）'
+    ])
   ];
 }
 
 function buildAboutNodes() {
   var categories = window.WebApp.categories || [];
-  var list = el('ul', null, null);
-  categories.forEach(function (name) {
-    list.appendChild(el('li', null, name));
-  });
   return [
     el('h3', null, '项目任务'),
     el('p', null, '根据中文电商评论文本，预测其所属的商品或服务类别；情感分析为 M5 扩展任务。'),
     el('h3', null, '类别范围（' + categories.length + ' 类）'),
-    list,
+    listOf(categories),
     el('h3', null, '团队分工'),
-    el('ul', null, null).appendChild(el('li', null, 'LanQvJian：项目统筹、工程集成、Web 部署与答辩组织')),
-    el('ul', null, null).appendChild(el('li', null, 'HuMingChang：数据工程、EDA、TF-IDF 与传统模型')),
-    el('ul', null, null).appendChild(el('li', null, 'HongSenYuan：FastText、BERT、模型优化与性能评估'))
+    listOf([
+      'LanQvJian：项目统筹、工程集成、Web 部署与答辩组织',
+      'HuMingChang：数据工程、EDA、TF-IDF 与传统模型',
+      'HongSenYuan：FastText、BERT、模型优化与性能评估'
+    ])
   ];
-}
-
-/** 把「多个 ul 各含一个 li」合并成单个列表，避免弹窗里出现一串单点列表。 */
-function toSingleList(nodes) {
-  var merged = [];
-  var current = null;
-  nodes.forEach(function (node) {
-    if (node.tagName === 'UL') {
-      if (!current) {
-        current = el('ul', null, null);
-        merged.push(current);
-      }
-      while (node.firstChild) current.appendChild(node.firstChild);
-      return;
-    }
-    current = null;
-    merged.push(node);
-  });
-  return merged;
 }
 
 /* ==========================================================================
@@ -631,10 +655,10 @@ function bindEvents() {
   });
 
   dom['btn-help'].addEventListener('click', function () {
-    openDialog('帮助文档', toSingleList(buildHelpNodes()));
+    openDialog('帮助文档', buildHelpNodes());
   });
   dom['btn-about'].addEventListener('click', function () {
-    openDialog('关于我们', toSingleList(buildAboutNodes()));
+    openDialog('关于我们', buildAboutNodes());
   });
   dom['btn-settings'].addEventListener('click', function () {
     showToast('功能规划中');

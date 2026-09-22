@@ -28,7 +28,7 @@ from pydantic import BaseModel, StrictInt
 
 from src.web.config import DEFAULT_CONFIG_PATH, WebConfig, load_web_config
 from src.web.errors import ApiError, ErrorCode
-from src.web.service import SENTIMENT_ENABLED, PredictorService
+from src.web.service import PredictorService
 
 
 LOGGER = logging.getLogger(__name__)
@@ -102,7 +102,7 @@ def register_routes(app: FastAPI, config: WebConfig, service: PredictorService) 
             "status": "ok" if loaded else "degraded",
             "model_name": service.model_name,
             "model_loaded": loaded,
-            "sentiment_enabled": SENTIMENT_ENABLED,
+            "sentiment_enabled": service.sentiment_enabled,
             "categories": config.categories,
         }
         return JSONResponse(status_code=200 if loaded else 503, content=body)
@@ -164,10 +164,17 @@ def create_app(
     config_path: str | Path | None = None,
     model_dir: str | Path | None = None,
     web_config: WebConfig | None = None,
+    sentiment_model_dir: str | Path | None = None,
 ) -> FastAPI:
-    """构建应用。模型在 lifespan 启动阶段加载一次（契约 §3.5）。"""
-    config = web_config or load_web_config(config_path, model_dir)
-    service = PredictorService(config.model_dir, config.categories)
+    """构建应用。模型在 lifespan 启动阶段加载一次（契约 §3.5）。
+
+    主任务与情感任务各加载一个模型目录；情感目录为 ``None`` 时情感功能关闭，
+    ``sentiment`` 按契约 §3.3 返回 ``null``。
+    """
+    config = web_config or load_web_config(config_path, model_dir, sentiment_model_dir)
+    service = PredictorService(
+        config.model_dir, config.categories, config.sentiment_model_dir
+    )
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> Iterator[None]:
@@ -194,7 +201,13 @@ app = create_app()
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """解析命令行参数。"""
     parser = argparse.ArgumentParser(description="电商评论分类预测服务")
-    parser.add_argument("--model-dir", type=Path, default=None, help="模型产物目录")
+    parser.add_argument("--model-dir", type=Path, default=None, help="主任务模型产物目录")
+    parser.add_argument(
+        "--sentiment-model-dir",
+        type=Path,
+        default=None,
+        help="情感任务模型产物目录；不指定则情感功能关闭，sentiment 返回 null",
+    )
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH, help="配置文件路径")
     parser.add_argument("--host", default="127.0.0.1", help="监听地址")
     parser.add_argument("--port", type=int, default=8000, help="监听端口")
@@ -208,7 +221,7 @@ def main(argv: list[str] | None = None) -> int:
 
     import uvicorn
 
-    application = create_app(args.config, args.model_dir)
+    application = create_app(args.config, args.model_dir, sentiment_model_dir=args.sentiment_model_dir)
     uvicorn.run(application, host=args.host, port=args.port)
     return 0
 

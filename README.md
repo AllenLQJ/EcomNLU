@@ -290,9 +290,21 @@ Web 服务的统一接口、请求字段、响应结构和错误码见
 `MODEL_NOT_LOADED`，便于在模型产物就绪前先联调页面和错误处理。
 
 ```powershell
-python -m src.web.app                                # 不带模型启动
-python -m src.web.app --model-dir models/tfidf_svm   # 加载指定模型
+# 不带模型启动（页面可用，预测返回 MODEL_NOT_LOADED）
+python -m src.web.app
+
+# 只启用类别预测
+python -m src.web.app --model-dir models/bert_base_chinese
+
+# 类别 + 情感（M5 完成后的推荐用法，答辩演示用这条）
+python -m src.web.app --model-dir models/bert_base_chinese `
+                      --sentiment-model-dir models/sentiment_tfidf_svm
 ```
+
+主任务与情感任务**各加载一个模型目录**（契约 v1.2 §2.1：一个目录只能承载一个任务），
+二者都在服务启动时加载一次。未指定 `--sentiment-model-dir` 时情感功能关闭，
+契约 §3.3 要求的 `sentiment` 字段返回 `null`，页面如实显示「服务未配置情感模型」，
+不做任何推断；情感模型加载失败也不影响类别预测。
 
 模型目录按 **`--model-dir` 参数 > `WEB_MODEL_DIR` 环境变量 > `configs/base.yaml`
 的 `api.model_dir`** 顺序解析（见 `src/web/config.py`）。
@@ -314,10 +326,13 @@ python -c "import os; os.environ['WEB_MODEL_DIR']='models/...'; import src.web.a
 
 | 参数 | 默认值 | 说明 |
 | --- | --- | --- |
-| `--model-dir` | 无 | 模型产物目录，须符合 [docs/contracts.md](docs/contracts.md) 第二章 |
+| `--model-dir` | 无 | 主任务模型产物目录，须符合 [docs/contracts.md](docs/contracts.md) 第二章 |
+| `--sentiment-model-dir` | 无 | 情感任务模型产物目录；不指定则情感功能关闭 |
 | `--host` | `127.0.0.1` | 监听地址 |
 | `--port` | `8000` | 监听端口 |
 | `--config` | `configs/base.yaml` | 配置文件路径 |
+
+情感模型目录同样遵循「参数 > `WEB_SENTIMENT_MODEL_DIR` 环境变量 > 配置」的解析顺序。
 
 启动后访问：
 
@@ -348,7 +363,7 @@ python -c "import os; os.environ['WEB_MODEL_DIR']='models/...'; import src.web.a
 | 服务正常 | 顶部显示绿色「服务正常」，提交后返回真实预测结果 |
 | 服务异常 | 顶部显示红色「服务异常」，请求失败不保留上一次结果 |
 | 输入不合法 | 输入框下方给出具体原因并聚焦到对应控件 |
-| 情感分析 | M5 未完成前如实显示「尚未启用 · 完成 M5 后开放」，不做任何推断 |
+| 情感分析 | 已配置情感模型时显示真实的正向/负向与置信度；未配置时显示「尚未启用 · 服务未配置情感模型」。未提交请求前显示「分析后显示」，三种状态区分明确，前端不做任何推断 |
 
 页面为原生 HTML / CSS / JavaScript，无构建步骤、无 CDN 依赖，与后端同源，可在离线环境演示。
 左侧「历史记录 / 数据统计 / 模型管理 / 系统设置」为本轮范围外的规划中模块，点击给出提示。
