@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>电商评论智能分析系统</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+  <!-- ============================================================ 顶部栏 -->
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand__logo" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <rect x="3" y="12" width="4" height="9" rx="1"></rect>
+        <rect x="10" y="7" width="4" height="14" rx="1"></rect>
+        <rect x="17" y="3" width="4" height="18" rx="1"></rect>
+      </svg>
+      <span class="brand__name">电商评论智能分析系统</span>
+    </div>
+
+    <div class="topbar__actions">
+      <span id="service-status" class="pill pill--checking" role="status" aria-live="polite">
+        <span class="pill__dot" aria-hidden="true"></span>
+        <span id="service-status-text">检查中</span>
+      </span>
+      <button id="btn-help" type="button" class="linkbtn">帮助文档</button>
+      <button id="btn-about" type="button" class="linkbtn">关于我们</button>
+      <button id="btn-settings" type="button" class="iconbtn" aria-label="系统设置">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <circle cx="12" cy="12" r="3.2"></circle>
+          <path d="M12 2.8v2.4M12 18.8v2.4M21.2 12h-2.4M5.2 12H2.8M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7M18.5 18.5l-1.7-1.7M7.2 7.2L5.5 5.5"></path>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="shell">
+    <!-- ========================================================== 左侧导航 -->
+    <nav class="sidenav" aria-label="主导航">
+      <ul class="sidenav__list">
+        <li>
+          <button type="button" class="navitem navitem--active" aria-current="page">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5.5 9.5V21h13V9.5"></path></svg>
+            智能分析
+          </button>
+        </li>
+        <li>
+          <button type="button" class="navitem" data-planned="历史记录">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5V12l3 2"></path></svg>
+            历史记录
+          </button>
+        </li>
+        <li>
+          <button type="button" class="navitem" data-planned="数据统计">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 20V11M12 20V4M19 20v-6"></path></svg>
+            数据统计
+          </button>
+        </li>
+        <li>
+          <button type="button" class="navitem" data-planned="模型管理">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3 20 7.5v9L12 21l-8-4.5v-9z"></path><path d="M12 12l8-4.5M12 12v9M12 12 4 7.5"></path></svg>
+            模型管理
+          </button>
+        </li>
+        <li>
+          <button type="button" class="navitem" data-planned="系统设置">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3"></circle><path d="M12 3v2.2M12 18.8V21M21 12h-2.2M5.2 12H3M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6M18.4 18.4l-1.6-1.6M7.2 7.2 5.6 5.6"></path></svg>
+            系统设置
+          </button>
+        </li>
+      </ul>
+      <p class="sidenav__note">除「智能分析」外均为规划中模块</p>
+    </nav>
+
+    <!-- ============================================================ 主工作区 -->
+    <main class="workspace">
+      <div class="workspace__col workspace__col--left">
+
+        <!-- 输入卡片 -->
+        <section class="card" aria-labelledby="input-title">
+          <h2 id="input-title" class="card__title">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 4.5h14v11H9l-4 4z"></path></svg>
+            输入电商评论
+          </h2>
+
+          <form id="predict-form" novalidate>
+            <label class="sr-only" for="review">评论文本</label>
+            <!-- maxlength 必须与 configs/base.yaml 的 api.max_review_chars 一致，
+                 由 tests/test_web_frontend.py 守护。 -->
+            <textarea id="review" name="review" rows="7" maxlength="2000" spellcheck="false"
+                      aria-describedby="char-count"
+                      placeholder="例如：这款手机很好用，电池耐用，拍照也很清晰。"></textarea>
+
+            <!-- 计数器自身承载 counter 基础类；updateCounter() 只增删 counter--over，
+                 不重建整个 class，避免基础样式被覆盖。 -->
+            <div id="char-count" class="counter">0 / 2000</div>
+
+            <div class="controls">
+              <label class="controls__label" for="top-k">Top-K</label>
+              <select id="top-k" name="top_k">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3" selected>3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+              </select>
+            </div>
+
+            <div class="buttons">
+              <button id="btn-submit" type="submit" class="btn btn--primary">开始分析</button>
+              <button id="btn-clear" type="button" class="btn btn--ghost">清空</button>
+            </div>
+          </form>
+
+          <p id="alert" class="alert" role="alert" hidden></p>
+        </section>
+
+        <!-- 建议处理方式 -->
+        <section class="card" aria-labelledby="routing-title">
+          <h2 id="routing-title" class="card__title">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9.5 18h5M10 21h4"></path><path d="M12 3a5.5 5.5 0 0 0-3 10.1V15h6v-1.9A5.5 5.5 0 0 0 12 3z"></path></svg>
+            建议处理方式
+          </h2>
+          <p class="card__hint">规则建议 · 由类别确定性映射，非模型预测</p>
+          <div id="routing" class="routing routing--empty">
+            <span id="routing-advice">分析后给出建议</span>
+            <span id="routing-priority" class="routing__priority" hidden></span>
+          </div>
+
+          <details id="api-details" class="details">
+            <summary class="details__summary">查看接口详情</summary>
+            <div class="details__body">
+              <h3 class="details__heading">请求</h3>
+              <pre id="api-request" class="code">暂无请求</pre>
+              <h3 class="details__heading">响应</h3>
+              <pre id="api-response" class="code">暂无响应</pre>
+            </div>
+          </details>
+        </section>
+      </div>
+
+      <div class="workspace__col workspace__col--right">
+
+        <!-- 预测类别 -->
+        <section class="card" aria-labelledby="category-title">
+          <h2 id="category-title" class="card__title">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 4h7l9 9-7 7-9-9z"></path><circle cx="8.2" cy="8.2" r="1.3"></circle></svg>
+            预测类别
+          </h2>
+
+          <p id="category-empty" class="empty">输入评论并开始分析后显示结果</p>
+
+          <div id="category-body" hidden>
+            <div class="verdict">
+              <span id="verdict-label" class="verdict__label">—</span>
+              <span id="verdict-confidence" class="verdict__confidence">—</span>
+              <span class="verdict__caption">置信度</span>
+            </div>
+            <dl class="facts">
+              <div class="facts__item">
+                <dt>使用模型</dt>
+                <dd id="fact-model">—</dd>
+              </div>
+              <div class="facts__item">
+                <dt>推理耗时</dt>
+                <dd id="fact-elapsed">—</dd>
+              </div>
+            </dl>
+          </div>
+        </section>
+
+        <!-- Top-K 概率 -->
+        <section class="card" aria-labelledby="topk-title">
+          <h2 id="topk-title" class="card__title">Top-3 概率</h2>
+          <p id="topk-empty" class="empty">暂无概率结果</p>
+          <ul id="topk-list" class="bars" aria-live="polite"></ul>
+        </section>
+
+        <!-- 情感分析 -->
+        <section class="card" aria-labelledby="sentiment-title">
+          <h2 id="sentiment-title" class="card__title">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8.5"></circle><path d="M8.8 14.2a4 4 0 0 0 6.4 0"></path><path d="M9.3 9.6h.01M14.7 9.6h.01"></path></svg>
+            情感分析
+          </h2>
+          <!-- 初始为「尚未分析」状态；服务是否具备情感能力由 /api/health 的
+               sentiment_enabled 决定，脚本会在健康检查返回后更新此处。 -->
+          <div id="sentiment" class="sentiment sentiment--off">
+            <span class="sentiment__mark" aria-hidden="true">—</span>
+            <span class="sentiment__text">
+              <span id="sentiment-label">分析后显示</span>
+              <span id="sentiment-note" class="sentiment__note">提交评论后返回情感倾向</span>
+            </span>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <!-- ============================================================== 浮层 -->
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <dialog id="info-dialog" class="dialog" aria-labelledby="info-dialog-title">
+    <div class="dialog__head">
+      <h2 id="info-dialog-title" class="dialog__title">说明</h2>
+      <button id="info-dialog-close" type="button" class="iconbtn" aria-label="关闭">
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+      </button>
+    </div>
+    <div id="info-dialog-body" class="dialog__body"></div>
+  </dialog>
+
+  <noscript>
+    <p class="noscript">本页面需要启用 JavaScript 才能调用预测接口。</p>
+  </noscript>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

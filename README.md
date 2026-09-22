@@ -290,9 +290,21 @@ Web 服务的统一接口、请求字段、响应结构和错误码见
 `MODEL_NOT_LOADED`，便于在模型产物就绪前先联调页面和错误处理。
 
 ```powershell
-python -m src.web.app                                # 不带模型启动
-python -m src.web.app --model-dir models/tfidf_svm   # 加载指定模型
+# 不带模型启动（页面可用，预测返回 MODEL_NOT_LOADED）
+python -m src.web.app
+
+# 只启用类别预测
+python -m src.web.app --model-dir models/bert_base_chinese
+
+# 类别 + 情感（M5 完成后的推荐用法，答辩演示用这条）
+python -m src.web.app --model-dir models/bert_base_chinese `
+                      --sentiment-model-dir models/sentiment_tfidf_svm
 ```
+
+主任务与情感任务**各加载一个模型目录**（契约 v1.2 §2.1：一个目录只能承载一个任务），
+二者都在服务启动时加载一次。未指定 `--sentiment-model-dir` 时情感功能关闭，
+契约 §3.3 要求的 `sentiment` 字段返回 `null`，页面如实显示「服务未配置情感模型」，
+不做任何推断；情感模型加载失败也不影响类别预测。
 
 模型目录按 **`--model-dir` 参数 > `WEB_MODEL_DIR` 环境变量 > `configs/base.yaml`
 的 `api.model_dir`** 顺序解析（见 `src/web/config.py`）。
@@ -314,26 +326,53 @@ python -c "import os; os.environ['WEB_MODEL_DIR']='models/...'; import src.web.a
 
 | 参数 | 默认值 | 说明 |
 | --- | --- | --- |
-| `--model-dir` | 无 | 模型产物目录，须符合 [docs/contracts.md](docs/contracts.md) 第二章 |
+| `--model-dir` | 无 | 主任务模型产物目录，须符合 [docs/contracts.md](docs/contracts.md) 第二章 |
+| `--sentiment-model-dir` | 无 | 情感任务模型产物目录；不指定则情感功能关闭 |
 | `--host` | `127.0.0.1` | 监听地址 |
 | `--port` | `8000` | 监听端口 |
 | `--config` | `configs/base.yaml` | 配置文件路径 |
+
+情感模型目录同样遵循「参数 > `WEB_SENTIMENT_MODEL_DIR` 环境变量 > 配置」的解析顺序。
 
 启动后访问：
 
 | 地址 | 说明 |
 | --- | --- |
-| http://127.0.0.1:8000/docs | 交互式接口文档（可现场演示） |
+| http://127.0.0.1:8000/ | **演示页面**（智能分析） |
+| http://127.0.0.1:8000/docs | 交互式接口文档 |
 | http://127.0.0.1:8000/api/health | 健康检查 |
 | http://127.0.0.1:8000/api/categories | 类别列表 |
 | http://127.0.0.1:8000/api/predict | 单条评论预测（POST） |
 
 模型在服务启动时加载**一次**，请求处理中不重复加载（契约 §3.5）。
 
-接口的自动化检查（19 项，不需要模型产物）：
+### 页面使用流程
+
+1. 在「输入电商评论」中输入一条中文评论（最多 2000 字符，右下角实时显示已用字数）。
+2. 选择 Top-K（1–10，默认 3），点击「开始分析」，或按 `Ctrl + Enter` 提交。
+3. 右侧依次显示：预测类别与置信度、使用模型与推理耗时、Top-K 概率条、情感分析状态。
+4. 下方「建议处理方式」是**前端规则映射**（按预测类别确定性给出，非模型输出），并标注了优先级。
+5. 展开「查看接口详情」可看到本次请求与响应的原始 JSON，便于解释前后端联调。
+6. 「清空」恢复初始状态；顶部「帮助文档」「关于我们」为说明弹窗。
+
+### 页面状态说明
+
+| 状态 | 表现 |
+| --- | --- |
+| 模型未就绪 | 顶部状态胶囊显示橙色「模型未就绪」；页面仍可浏览，提交会提示 `MODEL_NOT_LOADED` |
+| 服务正常 | 顶部显示绿色「服务正常」，提交后返回真实预测结果 |
+| 服务异常 | 顶部显示红色「服务异常」，请求失败不保留上一次结果 |
+| 输入不合法 | 输入框下方给出具体原因并聚焦到对应控件 |
+| 情感分析 | 已配置情感模型时显示真实的正向/负向与置信度；未配置时显示「尚未启用 · 服务未配置情感模型」。未提交请求前显示「分析后显示」，三种状态区分明确，前端不做任何推断 |
+
+页面为原生 HTML / CSS / JavaScript，无构建步骤、无 CDN 依赖，与后端同源，可在离线环境演示。
+左侧「历史记录 / 数据统计 / 模型管理 / 系统设置」为本轮范围外的规划中模块，点击给出提示。
+
+### 前端与接口的自动化检查
 
 ```powershell
-python -m unittest discover -s tests -p "test_web.py" -v
+python -m unittest discover -s tests -p "test_web*.py" -v   # 40 项
+python -m unittest discover -s tests -v                     # 全量
 ```
 
 Web 模块的已验证运行环境为 Python 3.10.20、FastAPI 0.141.1、pydantic 2.13.5、uvicorn 0.52.4。
