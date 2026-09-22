@@ -13,8 +13,8 @@
 ## 当前进度
 
 - [x] M1：项目初始化
-- [x] M2：数据清洗、分层划分与 EDA（待团队复核，见 `docs/development-plan.md`）
-- [x] M3：TF-IDF 特征、线性基线与随机森林对比（待团队复核）
+- [x] M2：数据清洗、分层划分与 EDA（已完成团队复核）
+- [x] M3：TF-IDF 特征、线性基线与随机森林对比（已完成团队复核）
 - [x] M4：FastText 与 BERT（代码、报告、模型契约、真实推理与 API 联调均已验收）
 - [x] M5：模型优化与情感分析扩展（量化 + 情感二分类均已交付并验收）
 - [x] M6：Web 部署与答辩材料（页面已接入真实模型完成端到端预测，答辩已完成）
@@ -27,6 +27,9 @@ M4 已完成 4 个 FastText 变体与 1 个 BERT 中文微调模型，并依据�
 M5 已交付 BERT 动态量化（体积 ↓62.7%，同一 CPU 口径下批 32 提速 1.65×）与情感二分类基线；
 M6 页面可在同一次请求中返回类别与情感两个任务的预测结果。
 五个模型族的完整横向对比见 `reports/model-comparison.md`（含数值来源与一处跨机器复现差异的说明）。
+
+项目已于 2026 年 9 月 22 日完成答辩演示并进入结项归档阶段。最终状态、非 Git 产物位置、
+已知限制和归档边界见 [reports/project-closure.md](reports/project-closure.md)。
 
 各阶段交付物状态见 [docs/development-plan.md](docs/development-plan.md)，典型问题与排查过程见
 [reports/typical-problems.md](reports/typical-problems.md)。

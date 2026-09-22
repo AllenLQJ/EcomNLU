@@ -1,5 +1,10 @@
 # 主部署模型决策（M4）
 
+> **归档说明（2026-09-22）**：本文是 M4 阶段的选模快照，其中“本机没有 M3
+> 产物”和“优化模型未做”等待办已在 M5/M6 完成，不再代表项目最终状态。
+> 最终统一数字与结项结论以 `reports/model-comparison.md`、
+> `reports/m5-quantization-report.md` 和 `reports/project-closure.md` 为准。
+
 - 负责人：HongSenYuan
 - 日期：2026-09-21（已合并 main 的 M3 基线与契约 v1.0.1 后更新）
 - 选模指标：**验证集 Macro-F1**（AGENTS.md §6；类别不均衡下 Accuracy 只作辅助）
@@ -60,23 +65,15 @@
    （`reports/bert-token-lengths.json`，覆盖率 96.29%），推理必须复用该值。
 4. **小类风险**：若业务上特别关心「热水器」，当前所有模型都不理想，需要数据侧复核或调整类别定义。
 
-## 4. 尚未完成、必须复核的事项
+## 4. 后续处理结果与保留限制
 
-1. **同一张自动生成的表还未包含 M3**：本机没有 `models/tfidf_{logreg,svm,rf}`（`.gitignore` 排除，
-   需本地训练）。运行下面的命令后，`reports/model-comparison.md` 会自动把 M3 三个模型并入同一张表，
-   届时本节的跨阶段汇总可以退化为单一来源：
-
-   ```powershell
-   python scripts/train_baseline.py        # 约 6-7 分钟（本机 RF 训练较慢，可能更久）
-   python scripts/compare_models.py --error-analysis-model models/bert_base_chinese --split test
-   ```
-
-   > 本次合并时尝试在本机重跑 M3 训练，RF（200 棵树 × 40 万维）阶段超过工具时限、被中断两次，
-   > 因此第 2 节的 M3 数值直接引用队友已发布的报告（已标注来源，未做任何改写或推算）。
-2. **优化模型未做**（量化 / 蒸馏 / 剪枝，M5 范围）：没有「更小且精度接近 BERT」的候选，
-   成本-精度取舍目前只有 BERT / SVM / FastText 三个档位。
+1. **M3 已并入最终统一表**：本机已重训 `tfidf_logreg`、`tfidf_svm` 和 `tfidf_rf`，
+   `reports/model-comparison.md` 已包含传统基线、随机森林、FastText、BERT 和优化模型五个模型族。
+2. **M5 已完成动态量化**：`bert_base_chinese_quantized` 已完成保存、重新加载、真实推理、
+   契约检查和同 CPU 口径对比；体积和速度提升伴随 Macro-F1 小幅下降。
 3. **未做类别加权实验**：`scripts/train_bert.py --class-weights` 已实现但未运行，
    小类（热水器）召回是否因此改善尚未验证。
+4. **FastText 存在跨机器复现差异**：最终报告已保留原始提交值和本机重训差异，原因未证实。
 
 ## 5. 复现命令
 
