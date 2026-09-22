@@ -16,17 +16,20 @@
 - [x] M2：数据清洗、分层划分与 EDA（待团队复核，见 `docs/development-plan.md`）
 - [x] M3：TF-IDF 特征、线性基线与随机森林对比（待团队复核）
 - [x] M4：FastText 与 BERT（代码、报告、模型契约、真实推理与 API 联调均已验收）
-- [ ] M5：模型优化与情感分析扩展（进行中）
-- [ ] M6：Web 部署与答辩材料（进行中，真实 BERT 预测 API 已联调通过）
+- [x] M5：模型优化与情感分析扩展（量化 + 情感二分类均已交付并验收）
+- [x] M6：Web 部署与答辩材料（页面已接入真实模型完成端到端预测，答辩已完成）
 
 M2 已产出可复现的数据闭环：原始 62,774 条 → 清洗后 62,752 条，
 按类别分层划分为 50,206 / 6,274 / 6,272，跨集合重复文本为 0。
 M3 已产出三个传统模型基线，选定 `tfidf_svm`（测试集 Macro-F1 = 0.8883）。
 M4 已完成 4 个 FastText 变体与 1 个 BERT 中文微调模型，并依据验证集 Macro-F1
 选定主部署模型 `models/bert_base_chinese`（见 `reports/model-selection.md`）。
-项目当前已进入 M5，HuMingChang 负责情感二分类基线，HongSenYuan 负责 BERT 优化；
-两项交付仍在开发中，尚未进入 M5 最终验收。
-模型训练与端到端预测的演示页面（M6）尚未完成。
+M5 已交付 BERT 动态量化（体积 ↓62.7%，同一 CPU 口径下批 32 提速 1.65×）与情感二分类基线；
+M6 页面可在同一次请求中返回类别与情感两个任务的预测结果。
+五个模型族的完整横向对比见 `reports/model-comparison.md`（含数值来源与一处跨机器复现差异的说明）。
+
+各阶段交付物状态见 [docs/development-plan.md](docs/development-plan.md)，典型问题与排查过程见
+[reports/typical-problems.md](reports/typical-problems.md)。
 
 ## 项目周期
 
@@ -148,9 +151,12 @@ python scripts/train_baseline.py --skip-ablation # 跳过特征方案对照，�
 python scripts/verify_model_contract.py
 ```
 
-实测结果（测试集 Macro-F1）：`tfidf_svm` 0.8883 ＞ `tfidf_logreg` 0.8777 ＞ `tfidf_rf` 0.8281。
-**随机森林并未胜出**——它在三项指标上均垫底，体积 900 MB、单条延迟 72 ms，
+实测结果（测试集 Macro-F1）：`tfidf_svm` 0.8883 ＞ `tfidf_logreg` 0.8779 ＞ `tfidf_rf` 0.8240。
+**随机森林并未胜出**——它在三项指标上均垫底，体积 898 MB、单条延迟 77 ms，
 不适合部署；结论与取舍依据见对比报告。
+
+> 以上为在本机以固定种子重训后的实测值。`tfidf_svm`（选定模型）与首次训练**完全一致（0.8883）**；
+> `tfidf_logreg` 与 `tfidf_rf` 有 0.0002 / 0.0041 的差异，属随机森林固有方差与求解器数值差异范围。
 
 模型文件较大（合计约 1.05 GB），已被 `.gitignore` 排除，不进入版本库；
 首次使用需运行上述训练命令或向队友索取。
