@@ -8,9 +8,22 @@
       "test_macro_f1": 0.913847,
       "test_accuracy": 0.919324,
       "size_bytes": 409126369,
-      "single_sample_latency_ms": 183.803,
-      "batch_32_latency_ms": 8191.777,
-      "throughput_per_sec": 3.9,
+      "single_sample_latency_ms": 20.762,
+      "batch_32_latency_ms": 239.979,
+      "throughput_per_sec": 133.3,
+      "measured_on": "cuda"
+    },
+    {
+      "model_dir": "D:\\pythonProject\\pythonProject\\ecommerce-text-classification\\models\\bert_base_chinese_quantized",
+      "name": "bert_base_chinese_quantized",
+      "dev_macro_f1": 0.904659,
+      "dev_accuracy": 0.913931,
+      "test_macro_f1": 0.900508,
+      "test_accuracy": 0.910874,
+      "size_bytes": 152647957,
+      "single_sample_latency_ms": 121.624,
+      "batch_32_latency_ms": 5132.288,
+      "throughput_per_sec": 6.2,
       "measured_on": "cpu"
     },
     {
