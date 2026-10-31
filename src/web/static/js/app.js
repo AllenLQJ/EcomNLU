@@ -1,5 +1,5 @@
 /**
- * 电商评论智能分析系统 · 前端逻辑
+ * EcomNLU · 智购感知 · 前端逻辑
  *
  * 约束（docs/web-development-spec.md）：
  * - 只调用契约 §3.1 的三个端点，不引入第二套接口或预测逻辑。
@@ -623,7 +623,7 @@ function buildAboutNodes() {
   var categories = window.WebApp.categories || [];
   return [
     el('h3', null, '项目任务'),
-    el('p', null, '根据中文电商评论文本，预测其所属的商品或服务类别；情感分析为 M5 扩展任务。'),
+    el('p', null, 'EcomNLU（智购感知）提供十类商品或服务识别与评论情感极性分析；情感结果需配置情感模型后返回。'),
     el('h3', null, '类别范围（' + categories.length + ' 类）'),
     listOf(categories),
     el('h3', null, '团队分工'),

@@ -6,7 +6,7 @@
 
 启动::
 
-    python -m src.web.app --model-dir models/tfidf_svm --port 8000
+    python -m src.web.app --model-dir models/tfidf_svm --port 8001
 
 模型未就绪时服务仍可启动，健康检查返回 503 + ``degraded``，预测返回
 ``MODEL_NOT_LOADED``，便于在模型产物就绪前联调前端。
@@ -182,7 +182,7 @@ def create_app(
         yield
 
     app = FastAPI(
-        title="电商评论分类预测接口",
+        title="EcomNLU（智购感知）预测 API",
         description="接口契约见 docs/contracts.md §3。",
         version="1.0.0",
         lifespan=lifespan,
@@ -200,7 +200,7 @@ app = create_app()
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """解析命令行参数。"""
-    parser = argparse.ArgumentParser(description="电商评论分类预测服务")
+    parser = argparse.ArgumentParser(description="EcomNLU（智购感知）预测服务")
     parser.add_argument("--model-dir", type=Path, default=None, help="主任务模型产物目录")
     parser.add_argument(
         "--sentiment-model-dir",
@@ -210,7 +210,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG_PATH, help="配置文件路径")
     parser.add_argument("--host", default="127.0.0.1", help="监听地址")
-    parser.add_argument("--port", type=int, default=8000, help="监听端口")
+    parser.add_argument("--port", type=int, default=8001, help="监听端口")
     return parser.parse_args(argv)
 
 

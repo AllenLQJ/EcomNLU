@@ -235,8 +235,8 @@ def build(output: Path) -> Path:
     background.fill.solid()
     background.fill.fore_color.rgb = LIGHT
     background.line.fill.background()
-    textbox(slide, 1.2, 2.3, 11, 1.0, "电商评论智能分析系统", size=44, color=DARK, bold=True)
-    textbox(slide, 1.25, 3.35, 11, 0.6, "中文电商评论主题分类与情感分析", size=20, color=BLUE)
+    textbox(slide, 1.2, 2.3, 11, 1.0, "EcomNLU · 智购感知", size=44, color=DARK, bold=True)
+    textbox(slide, 1.25, 3.35, 11, 0.6, "电商十类商品识别与评论情感极性分析系统", size=20, color=BLUE)
     textbox(slide, 1.25, 4.3, 11, 1.4,
             "LanQvJian · HuMingChang · HongSenYuan\n"
             "数据集：online_shopping_10_cats（62,774 条）\n"

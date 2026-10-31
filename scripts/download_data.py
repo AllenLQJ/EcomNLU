@@ -60,7 +60,7 @@ def fetch_archive() -> bytes:
         try:
             request = urllib.request.Request(
                 DATASET_URL,
-                headers={"User-Agent": "ecommerce-text-classification/1.0"},
+                headers={"User-Agent": "EcomNLU/1.0"},
             )
             with urllib.request.urlopen(request, timeout=120) as response:
                 chunks = []
