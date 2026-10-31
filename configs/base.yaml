@@ -1,5 +1,5 @@
 project:
-  name: ecommerce-text-classification
+  name: EcomNLU
   random_seed: 42
 
 data:

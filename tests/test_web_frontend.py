@@ -93,7 +93,7 @@ class IndexServingTests(FrontendTestCase):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200, response.text)
         self.assertIn("text/html", response.headers.get("content-type", ""))
-        self.assertIn("电商评论智能分析系统", response.text)
+        self.assertIn("EcomNLU · 智购感知", response.text)
 
     def test_page_loads_without_a_model(self) -> None:
         """说明书 §10.1：没有模型时首页仍可加载，不得白屏或报错。"""

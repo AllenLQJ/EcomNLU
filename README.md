@@ -1,6 +1,24 @@
-# 电商用户评论主题分类与情感分析系统
+# EcomNLU（智购感知）
+
+**正式项目名称：电商十类商品识别与评论情感极性分析系统。**
 
 本项目使用 `online_shopping_10_cats` 中文电商评论数据集，构建可训练、可评估、可优化和可部署的文本分类系统。
+
+## 业务定位与 Ecom 系列对齐
+
+EcomNLU（智购感知）是 Ecom 系列的感知层，基于原 `ecommerce-text-classification`
+项目演进，负责固定十类商品或服务识别与评论正负向情感分析。
+EcomRAG 为知识层，EcomPilot 为 C 端交易层，EcomOps 为 B 端运营层；
+本仓库承担分类与情感模型及其预测服务。
+
+- 当前接口：`POST /api/predict`，单条评论预测；已配置情感模型时同时返回情感结果。
+- 默认服务端口：`8001`；旧部署可显式使用 `--port 8000`。
+- 后续对齐目标：`POST /api/v1/nlu/analyze` 批量接口、标准 `category_code`、
+  `POSITIVE/NEGATIVE` 情感枚举，以及 EcomPilot / EcomOps 调用。这些尚未实现或联调验证。
+- 当前模型基于评论数据训练；导购需求、商品 PDF 和客服话术等输入的效果尚未验证。
+
+本次更名更新代码与展示名称；本地目录及 GitHub/Gitee 远程仓库地址仍保留原名称。
+已有实验报告、模型产物与答辩归档保留原始记录，不因更名重新宣称完成训练或联调。
 
 ## 项目任务
 
@@ -338,7 +356,7 @@ python -c "import os; os.environ['WEB_MODEL_DIR']='models/...'; import src.web.a
 | `--model-dir` | 无 | 主任务模型产物目录，须符合 [docs/contracts.md](docs/contracts.md) 第二章 |
 | `--sentiment-model-dir` | 无 | 情感任务模型产物目录；不指定则情感功能关闭 |
 | `--host` | `127.0.0.1` | 监听地址 |
-| `--port` | `8000` | 监听端口 |
+| `--port` | `8001` | 监听端口 |
 | `--config` | `configs/base.yaml` | 配置文件路径 |
 
 情感模型目录同样遵循「参数 > `WEB_SENTIMENT_MODEL_DIR` 环境变量 > 配置」的解析顺序。
@@ -347,11 +365,11 @@ python -c "import os; os.environ['WEB_MODEL_DIR']='models/...'; import src.web.a
 
 | 地址 | 说明 |
 | --- | --- |
-| http://127.0.0.1:8000/ | **演示页面**（智能分析） |
-| http://127.0.0.1:8000/docs | 交互式接口文档 |
-| http://127.0.0.1:8000/api/health | 健康检查 |
-| http://127.0.0.1:8000/api/categories | 类别列表 |
-| http://127.0.0.1:8000/api/predict | 单条评论预测（POST） |
+| http://127.0.0.1:8001/ | **演示页面**（智能分析） |
+| http://127.0.0.1:8001/docs | 交互式接口文档 |
+| http://127.0.0.1:8001/api/health | 健康检查 |
+| http://127.0.0.1:8001/api/categories | 类别列表 |
+| http://127.0.0.1:8001/api/predict | 单条评论预测（POST） |
 
 模型在服务启动时加载**一次**，请求处理中不重复加载（契约 §3.5）。
 

@@ -140,7 +140,7 @@ def chrome(slide, label, title, subtitle=None):
     rect(slide, 0.75, 1.45, 11.67, 0.02, fill=DIV)
     if subtitle:
         text(slide, 0.77, 1.72, 11.0, 0.5, subtitle, size=15, color=MUTED)
-    text(slide, 0.77, 7.10, 4.38, 0.21, "电商评论智能分析系统", size=8.25, color=MUTED)
+    text(slide, 0.77, 7.10, 4.38, 0.21, "EcomNLU · 智购感知", size=8.25, color=MUTED)
     page = text(slide, 11.77, 7.08, 0.65, 0.23, "", size=9, color=TEAL, bold=True)
     page.name = "页码"
     return page

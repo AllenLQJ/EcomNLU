@@ -2,7 +2,11 @@
 
 ## 1. 项目名称
 
-电商用户评论主题分类与情感分析系统（E-commerce Text Classification）
+EcomNLU（智购感知）——电商十类商品识别与评论情感极性分析系统
+
+项目定位为 Ecom 系列感知层，面向 EcomPilot 与 EcomOps 提供分类与情感能力。
+默认 Web 端口为 `8001`。统一批量接口与跨系统调用属于后续目标，未经实现与验证不得宣称完成。
+本地目录和远程地址可以保留原名；项目标识统一使用 `EcomNLU`。
 
 ## 2. 项目目标
 
@@ -97,7 +101,7 @@ data/
 项目可以参考投满分项目的学习顺序，但不得复制其中的硬编码绝对路径。
 
 ```text
-ecommerce-text-classification/
+EcomNLU/
 ├── AGENTS.md
 ├── README.md
 ├── requirements.txt
