@@ -163,12 +163,28 @@ class PredictorService:
         label, probability = ranked[0]
         return {"label": label, "confidence": round(float(probability), PROBABILITY_PRECISION)}
 
-    def classify(self, review: str) -> tuple[str, float]:
-        """只做主任务的 top1 分类，返回 (类别, 置信度)；供 analyze 对子句逐句分类。"""
+    def classify_many(self, reviews: list[str]) -> list[tuple[str, float]]:
+        """主任务 top1 分类的**批量**版本：一次 ``predict_proba`` 调用处理全部文本（模型只前向一次）。
+        返回与输入等长的 [(类别, 置信度)]；供 analyze 对整段和各子句一起分类。"""
         if self._predictor is None:
             raise ApiError(ErrorCode.MODEL_NOT_LOADED, "模型尚未加载完成")
-        label, probability = self._rank(self._infer(self._predictor, review), self._category_order)[0]
-        return label, round(float(probability), PROBABILITY_PRECISION)
+        if not reviews:
+            return []
+        try:
+            batch = self._predictor.predict_proba(list(reviews))
+        except PredictorError as exc:
+            raise ApiError(ErrorCode.INTERNAL_ERROR, f"推理失败：{exc}") from exc
+        if len(batch) != len(reviews):
+            raise ApiError(ErrorCode.INTERNAL_ERROR, "推理失败：返回条数与输入不一致")
+        out = []
+        for probabilities in batch:
+            label, probability = self._rank(probabilities, self._category_order)[0]
+            out.append((label, round(float(probability), PROBABILITY_PRECISION)))
+        return out
+
+    def classify(self, review: str) -> tuple[str, float]:
+        """单条的 top1 分类，等价于 ``classify_many([review])[0]``。"""
+        return self.classify_many([review])[0]
 
     def sentiment(self, review: str) -> dict[str, Any] | None:
         """情感结果 ``{"label", "confidence"}``；情感模型未启用时为 ``None``。"""

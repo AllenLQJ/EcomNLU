@@ -58,11 +58,11 @@ def analyze(request: AnalyzeRequest, config: AnalyzeConfig, service: PredictorSe
     if not service.is_ready:
         raise ApiError(ErrorCode.MODEL_NOT_LOADED, "模型尚未加载完成")
 
-    whole_label, whole_confidence = service.classify(text)
-    clauses = []
-    for part in split_clauses(text, config.max_clauses):
-        label, confidence = (whole_label, whole_confidence) if part == text else service.classify(part)
-        clauses.append(_clause(part, label, confidence, config))
+    parts = split_clauses(text, config.max_clauses)
+    # 整段和所有子句放进同一批，模型只前向一次（路线图图 2-1："批量推理"）；与整段相同的子句不重复算
+    unique = list(dict.fromkeys([text, *parts]))
+    predictions = dict(zip(unique, service.classify_many(unique)))
+    clauses = [_clause(part, *predictions[part], config) for part in parts]
 
     sentiment = service.sentiment(text)
     if sentiment and sentiment["label"] in SENTIMENT_ENUM:

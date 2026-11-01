@@ -509,7 +509,7 @@ python scripts/verify_model_contract.py models/<model_name>
 }
 ```
 
-- 子句按 `，。！？；、和以及顺便还要` 与换行切分，最多 `analyze.max_clauses`（默认 5）个。
+- 子句按 `，。！？；、和以及顺便还要` 与换行切分，最多 `analyze.max_clauses`（默认 5）个。整段和所有子句在同一批里推理（模型只前向一次）；情感只对整段做一次。
 - 子句置信度低于 `analyze.confidence_threshold`（默认 0.65）时 `predicted_label="ABSTAIN"`，`category_code`、`catalog_category_hint`、`brand_hint` 均为 `null`；上游应把它当作"没有提示"。
 - `category_code` / `catalog_category_hint` / `brand_hint` / `item_type` 来自 `analyze.categories` 的配置映射；类别没有对应目录品类时 `catalog_category_hint` 为 `null`。
 - `sentiment` 取 `POSITIVE` / `NEGATIVE` / `NEUTRAL`；情感模型未配置时为 `NEUTRAL`、`sentiment_score=0`，**不猜**。情感针对整段文本，不是逐子句。

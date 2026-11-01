@@ -29,8 +29,10 @@ class TablePredictor:
         self.categories = list(CATEGORIES)
         self.table = table
         self.calls: list[str] = []
+        self.batches: list[int] = []        # 每次 predict_proba 调用处理的条数
 
     def predict_proba(self, texts: list[str]) -> list[dict[str, float]]:
+        self.batches.append(len(texts))
         out = []
         for text in texts:
             self.calls.append(text)
@@ -135,6 +137,14 @@ class AnalyzeTests(unittest.TestCase):
         with make_client() as client:
             post(client, "热水器漏水了")
             self.assertEqual(len(client.predictor.calls), 1)                      # 整段 == 唯一子句，不重复推理
+
+    def test_whole_text_and_all_clauses_go_through_one_batched_forward(self):
+        with make_client() as client:
+            post(client, "热水器要一台，牛奶一箱，酒店订一晚")
+            self.assertEqual(client.predictor.batches, [4])          # 整段 + 3 个子句，只有一次模型调用
+            client.predictor.batches.clear()
+            post(client, "热水器漏水了")
+            self.assertEqual(client.predictor.batches, [1])          # 单子句 == 整段，不重复计算
 
     def test_clause_limit(self):
         with make_client() as client:
