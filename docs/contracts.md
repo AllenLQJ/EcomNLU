@@ -493,7 +493,7 @@ python scripts/verify_model_contract.py models/<model_name>
 ```
 
 - `text`：必填，字符串，去首尾空白后不能为空，长度上限见 `configs/base.yaml` 的 `analyze.max_text_chars`（默认 500）。
-- `scene_type`：可选，默认 `AFTER_SALE_FEEDBACK`。`analyze.not_applicable_scenes`（默认 `PDF_BODY`、`CS_APOLOGY`）内的场景不调用模型，直接返回 `scene_not_applicable=true`；`analyze.priority_boost_scenes`（默认 `AFTER_SALE_FEEDBACK`、`aftersales`）内且情感为负向时 `priority_boost=true`。
+- `scene_type`：可选，默认 `AFTER_SALE_FEEDBACK`。`analyze.not_applicable_scenes`（默认 `PDF_BODY`、`CS_APOLOGY`）内的场景不调用模型，直接返回 `scene_not_applicable=true`；`analyze.priority_boost_scenes`（默认 `AFTER_SALE_FEEDBACK`、`aftersales`）内且情感为负向、`sentiment_score >= analyze.priority_boost_min_score`（默认 0.85）时 `priority_boost=true`；得分不够的负向只标 `NEGATIVE`，不加急。
 
 成功（200）：
 

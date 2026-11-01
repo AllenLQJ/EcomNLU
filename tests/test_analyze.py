@@ -107,6 +107,17 @@ class AnalyzeTests(unittest.TestCase):
         self.assertIsNone(clause["category_code"])
         self.assertIsNone(clause["catalog_category_hint"])
 
+    def test_weak_negative_does_not_boost_priority(self):
+        class WeakNegative(SentimentTable):
+            def predict_proba(self, texts):
+                return [{"负向": 0.8, "正向": 0.2} for _ in texts]
+        predictor = TablePredictor(TABLE)
+        with patch("src.web.service.load_predictor",
+                   side_effect=lambda p: WeakNegative() if "sentiment" in str(p) else predictor):
+            with TestClient(create_app(model_dir=Path("fake_model"), sentiment_model_dir=Path("fake_sentiment"))) as client:
+                body = post(client, "热水器漏水了", "aftersales").json()
+        self.assertEqual((body["sentiment"], body["sentiment_score"], body["priority_boost"]), ("NEGATIVE", 0.8, False))
+
     def test_without_sentiment_model_is_neutral_not_guessed(self):
         with make_client(sentiment=False) as client:
             body = post(client, "热水器漏水了").json()
@@ -174,6 +185,7 @@ class AnalyzeConfigTests(unittest.TestCase):
         cases = [
             (lambda r: r["analyze"].update(confidence_threshold=1.5), "confidence_threshold"),
             (lambda r: r["analyze"].update(max_clauses=0), "max_clauses"),
+            (lambda r: r["analyze"].update(priority_boost_min_score=2), "priority_boost_min_score"),
             (lambda r: r["analyze"].update(not_applicable_scenes="PDF_BODY"), "not_applicable_scenes"),
             (lambda r: r["analyze"]["categories"].update({"不存在的类别": {"category_code": "X"}}), "未知类别"),
             (lambda r: r["analyze"]["categories"]["手机"].pop("category_code"), "category_code"),

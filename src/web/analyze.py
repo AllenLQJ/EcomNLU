@@ -70,5 +70,6 @@ def analyze(request: AnalyzeRequest, config: AnalyzeConfig, service: PredictorSe
     else:
         enum, score = "NEUTRAL", 0.0
     return {"clauses": clauses, "sentiment": enum, "sentiment_score": score,
-            "priority_boost": enum == "NEGATIVE" and request.scene_type in config.priority_boost_scenes,
+            "priority_boost": (enum == "NEGATIVE" and score >= config.priority_boost_min_score
+                               and request.scene_type in config.priority_boost_scenes),
             "scene_not_applicable": False, "model_name": service.model_name}

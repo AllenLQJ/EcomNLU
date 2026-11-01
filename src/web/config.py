@@ -33,6 +33,7 @@ class AnalyzeConfig:
     confidence_threshold: float = 0.65
     max_clauses: int = 5
     max_text_chars: int = 500
+    priority_boost_min_score: float = 0.85
     not_applicable_scenes: tuple[str, ...] = ("PDF_BODY", "CS_APOLOGY")
     priority_boost_scenes: tuple[str, ...] = ("AFTER_SALE_FEEDBACK", "aftersales")
     #: 类别 -> {category_code, catalog_category_id, brand_hint?, item_type?}
@@ -81,6 +82,9 @@ def _load_analyze(raw: object, categories: list[str], path: Path) -> AnalyzeConf
     threshold = raw.get("confidence_threshold", defaults.confidence_threshold)
     if isinstance(threshold, bool) or not isinstance(threshold, (int, float)) or not 0 <= threshold <= 1:
         raise ValueError(f"{path} 的 analyze.confidence_threshold 必须在 0 到 1 之间，实际为 {threshold!r}")
+    boost_min = raw.get("priority_boost_min_score", defaults.priority_boost_min_score)
+    if isinstance(boost_min, bool) or not isinstance(boost_min, (int, float)) or not 0 <= boost_min <= 1:
+        raise ValueError(f"{path} 的 analyze.priority_boost_min_score 必须在 0 到 1 之间，实际为 {boost_min!r}")
     ints = {}
     for key, default in (("max_clauses", defaults.max_clauses), ("max_text_chars", defaults.max_text_chars)):
         value = raw.get(key, default)
@@ -103,7 +107,8 @@ def _load_analyze(raw: object, categories: list[str], path: Path) -> AnalyzeConf
     for name, entry in mapping.items():
         if not isinstance(entry, dict) or not isinstance(entry.get("category_code"), str) or not entry["category_code"]:
             raise ValueError(f"{path} 的 analyze.categories.{name} 必须是含 category_code 的映射")
-    return AnalyzeConfig(confidence_threshold=float(threshold), categories=dict(mapping), **ints, **scenes)
+    return AnalyzeConfig(confidence_threshold=float(threshold), priority_boost_min_score=float(boost_min),
+                         categories=dict(mapping), **ints, **scenes)
 
 
 def load_web_config(

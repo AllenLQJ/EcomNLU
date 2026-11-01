@@ -57,7 +57,8 @@ analyze:
   max_clauses: 5                 # 一次最多分析的子句数，超出部分丢弃
   max_text_chars: 500
   not_applicable_scenes: [PDF_BODY, CS_APOLOGY]       # 评论分类模型不适用的场景，直接返回 scene_not_applicable
-  priority_boost_scenes: [AFTER_SALE_FEEDBACK, aftersales]   # 这些场景下情感为负向时 priority_boost=true
+  priority_boost_scenes: [AFTER_SALE_FEEDBACK, aftersales]   # 这些场景下情感为负向且得分达标时 priority_boost=true
+  priority_boost_min_score: 0.85   # 负向得分低于此值不加急（路线图图 2-1：NEGATIVE 且 score>=0.85）
   categories:
     书籍:   {category_code: BOOK,        catalog_category_id: BOOKS}
     平板:   {category_code: TABLET,      catalog_category_id: DIGITAL_TABLET}
