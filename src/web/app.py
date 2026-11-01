@@ -26,6 +26,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, StrictInt
 
+from src.web.analyze import AnalyzeRequest, analyze
 from src.web.config import DEFAULT_CONFIG_PATH, WebConfig, load_web_config
 from src.web.errors import ApiError, ErrorCode
 from src.web.service import PredictorService
@@ -69,6 +70,8 @@ def map_validation_error(exc: RequestValidationError) -> ApiError:
             return ApiError(ErrorCode.MISSING_REVIEW, "review 字段缺失或不是字符串")
         if location == ("body", "top_k"):
             return ApiError(ErrorCode.INVALID_TOP_K, "top_k 必须是 1 到 10 的整数")
+        if location == ("body", "text") or location == ("body", "scene_type"):
+            return ApiError(ErrorCode.MISSING_TEXT, "text 字段缺失或不是字符串（scene_type 若提供也必须是字符串）")
     return ApiError(ErrorCode.INVALID_JSON, "请求体必须是包含 review 字段的 JSON 对象")
 
 
@@ -139,6 +142,22 @@ def register_routes(app: FastAPI, config: WebConfig, service: PredictorService) 
         return service.predict(review.strip(), top_k)
 
 
+def register_analyze_route(app: FastAPI, config: WebConfig, service: PredictorService) -> None:
+    """``POST /api/v1/nlu/analyze``（契约 v1.3 §3.7）：子句级类别提示 + 整段情感。"""
+
+    @app.post(
+        "/api/v1/nlu/analyze",
+        summary="文本分析：子句类别提示 + 情感",
+        responses={
+            400: {"description": "请求不合法"},
+            503: {"description": "模型未加载"},
+        },
+    )
+    def analyze_text(payload: AnalyzeRequest) -> dict[str, Any]:
+        # 同步函数：FastAPI 放到线程池里跑，模型推理不会堵住事件循环
+        return analyze(payload, config.analyze, service)
+
+
 def register_frontend(app: FastAPI) -> None:
     """挂载首页与静态资源（说明书 §9.1）。
 
@@ -191,6 +210,7 @@ def create_app(
     app.state.service = service
     register_error_handlers(app)
     register_routes(app, config, service)
+    register_analyze_route(app, config, service)
     register_frontend(app)
     return app
 

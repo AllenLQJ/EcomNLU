@@ -1,13 +1,12 @@
 # EcomNLU（智购感知）接口契约（强制）
 
-版本：v1.2
+版本：v1.3
 首次生效：2026-09-21
 本版生效：2026-09-21（三名成员已确认 v1.2 修订）
 维护人：LanQvJian
 
 > 2026-10-31：项目名称更新为 EcomNLU（智购感知），默认服务端口为 8001。
-> 既有 v1.2 请求与响应契约继续有效；路线文档中的 `/api/v1/nlu/analyze`
-> 批量端点及 `category_code` 等字段尚未实现，不属于当前可调用接口。
+> 既有 v1.2 请求与响应契约继续有效。2026-11-01 起新增 v1.3 的 `POST /api/v1/nlu/analyze`（见 §3.6）。
 
 ## 变更记录
 
@@ -16,6 +15,7 @@
 | v1.0 | 2026-09-21 | 首次发布 | — |
 | v1.0.1 | 2026-09-21 | §2.3：`split_manifest_sha256` 改为 `dataset_fingerprint`，由 train/dev/test 三个 CSV 的内容哈希计算 | v1.0 的指纹取自 `split_manifest.json` 整体，该文件含 `created_at`，每次重新生成数据都会变化。即使三个 CSV 字节完全一致，模型仍会被判定为"基于旧数据训练"，导致 M3 无法通过验收（见 `reports/m3-validation.md` 阻断项） |
 | v1.1 | 2026-09-21 | §2.3：`device` 改为记录实际使用的 `cpu` 或 `cuda` | M4 可使用已验证的 CUDA 环境训练，契约不得把设备错误固定为 CPU |
+| v1.3 | 2026-11-01 | 新增 §3.6 `POST /api/v1/nlu/analyze`（子句级类别提示 + 整段情感）与错误码 `MISSING_TEXT` / `EMPTY_TEXT` / `TEXT_TOO_LONG`；映射配置见 `configs/base.yaml` 的 `analyze` 段 | EcomPilot / EcomOps 需要按子句取类别提示，而不是单条评论的 top-k；不改动 v1.2 的任何既有端点与字段 |
 | v1.2 | 2026-09-21 | 固定 M2 冲突重复处理规则；新增情感任务的模型命名、标签映射、指标维度、统一推理与配置约定 | M5 情感模型必须能在不破坏主任务契约的前提下验收和部署 |
 
 > **v1.0.1 是 v1.0 的勘误（erratum），不是功能扩展。**
@@ -380,6 +380,7 @@ python scripts/verify_model_contract.py models/<model_name>
 | GET | `/api/health` | 健康检查 |
 | GET | `/api/categories` | 返回 10 个类别，供前端展示 |
 | POST | `/api/predict` | 单条评论预测 |
+| POST | `/api/v1/nlu/analyze` | 子句级类别提示 + 整段情感（v1.3，见 §3.7） |
 
 ### 3.2 GET /api/health
 
@@ -463,6 +464,9 @@ python scripts/verify_model_contract.py models/<model_name>
 | `EMPTY_REVIEW` | 400 | `review` 为空串或纯空白 |
 | `REVIEW_TOO_LONG` | 400 | `review` 长度超过上限 |
 | `INVALID_TOP_K` | 400 | `top_k` 不是 1–10 的整数 |
+| `MISSING_TEXT` | 400 | analyze：缺少 `text` 字段或类型错误（v1.3） |
+| `EMPTY_TEXT` | 400 | analyze：`text` 为空串或纯空白（v1.3） |
+| `TEXT_TOO_LONG` | 400 | analyze：`text` 超过 `analyze.max_text_chars`（v1.3） |
 | `MODEL_NOT_LOADED` | 503 | 模型尚未加载完成 |
 | `INTERNAL_ERROR` | 500 | 其它未预期异常 |
 
@@ -476,6 +480,41 @@ python scripts/verify_model_contract.py models/<model_name>
 - 启动方式与访问地址必须写入 `README.md`。
 
 ---
+
+
+### 3.7 POST /api/v1/nlu/analyze（v1.3 新增）
+
+供上游把一段用户文本拆成子句，逐句取类别提示，并取整段情感。
+
+请求：
+
+```json
+{"text": "热水器漏水了，另外牛奶要一箱", "scene_type": "aftersales"}
+```
+
+- `text`：必填，字符串，去首尾空白后不能为空，长度上限见 `configs/base.yaml` 的 `analyze.max_text_chars`（默认 500）。
+- `scene_type`：可选，默认 `AFTER_SALE_FEEDBACK`。`analyze.not_applicable_scenes`（默认 `PDF_BODY`、`CS_APOLOGY`）内的场景不调用模型，直接返回 `scene_not_applicable=true`；`analyze.priority_boost_scenes`（默认 `AFTER_SALE_FEEDBACK`、`aftersales`）内且情感为负向时 `priority_boost=true`。
+
+成功（200）：
+
+```json
+{
+  "clauses": [
+    {"text": "热水器漏水了", "predicted_label": "热水器", "category_confidence": 0.93,
+     "category_code": "WATER_HEATER", "catalog_category_hint": "HOME_APPLIANCE_HEATER",
+     "brand_hint": null, "item_type": "PRODUCT"}
+  ],
+  "sentiment": "NEGATIVE", "sentiment_score": 0.97,
+  "priority_boost": true, "scene_not_applicable": false, "model_name": "bert_base_chinese"
+}
+```
+
+- 子句按 `，。！？；、和以及顺便还要` 与换行切分，最多 `analyze.max_clauses`（默认 5）个。
+- 子句置信度低于 `analyze.confidence_threshold`（默认 0.65）时 `predicted_label="ABSTAIN"`，`category_code`、`catalog_category_hint`、`brand_hint` 均为 `null`；上游应把它当作"没有提示"。
+- `category_code` / `catalog_category_hint` / `brand_hint` / `item_type` 来自 `analyze.categories` 的配置映射；类别没有对应目录品类时 `catalog_category_hint` 为 `null`。
+- `sentiment` 取 `POSITIVE` / `NEGATIVE` / `NEUTRAL`；情感模型未配置时为 `NEUTRAL`、`sentiment_score=0`，**不猜**。情感针对整段文本，不是逐子句。
+- 错误（400，同 §3.4 结构）：`MISSING_TEXT`（缺 `text` 或类型错误）、`EMPTY_TEXT`、`TEXT_TOO_LONG`、`INVALID_JSON`；模型未加载 `503 MODEL_NOT_LOADED`（不适用场景不需要模型，仍返回 200）。
+- 底层是用电商评论训练的模型，对导购需求、售后吐槽这类文本的效果未经验证。
 
 ## 四、契约与文档的对应关系
 

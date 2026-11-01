@@ -27,7 +27,7 @@ from src.web.app import STATIC_DIR, TEMPLATES_DIR  # noqa: E402
 
 
 CONFIG = load_web_config()
-CONTRACT_ENDPOINTS = {"/api/health", "/api/categories", "/api/predict"}
+CONTRACT_ENDPOINTS = {"/api/health", "/api/categories", "/api/predict", "/api/v1/nlu/analyze"}
 
 #: Node 仅作为**测试期**的 JS 执行环境；前端运行时本身不依赖 Node。
 #: 未安装时相关用例自动跳过，不影响其余测试。

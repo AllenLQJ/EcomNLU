@@ -163,6 +163,17 @@ class PredictorService:
         label, probability = ranked[0]
         return {"label": label, "confidence": round(float(probability), PROBABILITY_PRECISION)}
 
+    def classify(self, review: str) -> tuple[str, float]:
+        """只做主任务的 top1 分类，返回 (类别, 置信度)；供 analyze 对子句逐句分类。"""
+        if self._predictor is None:
+            raise ApiError(ErrorCode.MODEL_NOT_LOADED, "模型尚未加载完成")
+        label, probability = self._rank(self._infer(self._predictor, review), self._category_order)[0]
+        return label, round(float(probability), PROBABILITY_PRECISION)
+
+    def sentiment(self, review: str) -> dict[str, Any] | None:
+        """情感结果 ``{"label", "confidence"}``；情感模型未启用时为 ``None``。"""
+        return self._predict_sentiment(review)
+
     def predict(self, review: str, top_k: int) -> dict[str, Any]:
         """对单条评论预测，返回契约 §3.3 规定的响应体。"""
         if self._predictor is None:

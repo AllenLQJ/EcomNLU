@@ -11,10 +11,11 @@ EcomNLU（智购感知）是 Ecom 系列的感知层，基于原 `ecommerce-text
 EcomRAG 为知识层，EcomPilot 为 C 端交易层，EcomOps 为 B 端运营层；
 本仓库承担分类与情感模型及其预测服务。
 
-- 当前接口：`POST /api/predict`，单条评论预测；已配置情感模型时同时返回情感结果。
+- 当前接口：`POST /api/predict`（单条评论预测；已配置情感模型时同时返回情感结果）与
+  `POST /api/v1/nlu/analyze`（子句级类别提示 + 整段情感，供 EcomPilot / EcomOps 调用，契约 v1.3 §3.7）。
 - 默认服务端口：`8001`；旧部署可显式使用 `--port 8000`。
-- 后续对齐目标：`POST /api/v1/nlu/analyze` 批量接口、标准 `category_code`、
-  `POSITIVE/NEGATIVE` 情感枚举，以及 EcomPilot / EcomOps 调用。这些尚未实现或联调验证。
+- `analyze` 的类别编码 `category_code` 与店铺目录品类 `catalog_category_id` 的映射在 `configs/base.yaml` 的
+  `analyze.categories`。该接口已用确定性假模型做过自动化测试，**尚未用真实模型产物联调**（本仓库不提交模型文件）。
 - 当前模型基于评论数据训练；导购需求、商品 PDF 和客服话术等输入的效果尚未验证。
 
 本次更名更新代码与展示名称；本地目录及 GitHub/Gitee 远程仓库地址仍保留原名称。

@@ -27,6 +27,19 @@ SENTIMENT_MODEL_DIR_ENV = "WEB_SENTIMENT_MODEL_DIR"
 
 
 @dataclass(frozen=True)
+class AnalyzeConfig:
+    """``POST /api/v1/nlu/analyze`` 的配置（``configs/base.yaml`` 的 ``analyze`` 段）。"""
+
+    confidence_threshold: float = 0.65
+    max_clauses: int = 5
+    max_text_chars: int = 500
+    not_applicable_scenes: tuple[str, ...] = ("PDF_BODY", "CS_APOLOGY")
+    priority_boost_scenes: tuple[str, ...] = ("AFTER_SALE_FEEDBACK", "aftersales")
+    #: 类别 -> {category_code, catalog_category_id, brand_hint?, item_type?}
+    categories: dict[str, dict] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class WebConfig:
     """Web 服务运行所需的配置。"""
 
@@ -37,6 +50,7 @@ class WebConfig:
     sentiment_model_dir: Path | None = None
     default_top_k: int = DEFAULT_TOP_K
     max_top_k: int = MAX_TOP_K
+    analyze: AnalyzeConfig = field(default_factory=AnalyzeConfig)
 
     @property
     def category_count(self) -> int:
@@ -56,6 +70,40 @@ def _resolve_model_dir(
     if candidate is None:
         return None
     return Path(candidate)
+
+
+def _load_analyze(raw: object, categories: list[str], path: Path) -> AnalyzeConfig:
+    if raw is None:
+        return AnalyzeConfig()
+    if not isinstance(raw, dict):
+        raise ValueError(f"{path} 的 analyze 段必须是映射")
+    defaults = AnalyzeConfig()
+    threshold = raw.get("confidence_threshold", defaults.confidence_threshold)
+    if isinstance(threshold, bool) or not isinstance(threshold, (int, float)) or not 0 <= threshold <= 1:
+        raise ValueError(f"{path} 的 analyze.confidence_threshold 必须在 0 到 1 之间，实际为 {threshold!r}")
+    ints = {}
+    for key, default in (("max_clauses", defaults.max_clauses), ("max_text_chars", defaults.max_text_chars)):
+        value = raw.get(key, default)
+        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+            raise ValueError(f"{path} 的 analyze.{key} 必须是正整数，实际为 {value!r}")
+        ints[key] = value
+    scenes = {}
+    for key, default in (("not_applicable_scenes", defaults.not_applicable_scenes),
+                         ("priority_boost_scenes", defaults.priority_boost_scenes)):
+        value = raw.get(key, list(default))
+        if not isinstance(value, list) or not all(isinstance(item, str) and item for item in value):
+            raise ValueError(f"{path} 的 analyze.{key} 必须是非空字符串列表")
+        scenes[key] = tuple(value)
+    mapping = raw.get("categories", {}) or {}
+    if not isinstance(mapping, dict):
+        raise ValueError(f"{path} 的 analyze.categories 必须是映射")
+    unknown = sorted(set(mapping) - set(categories))
+    if unknown:
+        raise ValueError(f"{path} 的 analyze.categories 含未知类别 {unknown}（必须是 task.categories 之一）")
+    for name, entry in mapping.items():
+        if not isinstance(entry, dict) or not isinstance(entry.get("category_code"), str) or not entry["category_code"]:
+            raise ValueError(f"{path} 的 analyze.categories.{name} 必须是含 category_code 的映射")
+    return AnalyzeConfig(confidence_threshold=float(threshold), categories=dict(mapping), **ints, **scenes)
 
 
 def load_web_config(
@@ -93,8 +141,10 @@ def load_web_config(
             f"{path} 的 api.max_review_chars 必须是正整数，实际为 {max_review_chars!r}"
         )
 
+    cleaned_categories = [name.strip() for name in categories]
     return WebConfig(
-        categories=[name.strip() for name in categories],
+        analyze=_load_analyze(raw.get("analyze"), cleaned_categories, path),
+        categories=cleaned_categories,
         max_review_chars=max_review_chars,
         model_dir=_resolve_model_dir(model_dir, api_section.get("model_dir")),
         sentiment_model_dir=_resolve_model_dir(

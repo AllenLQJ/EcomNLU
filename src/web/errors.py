@@ -20,6 +20,9 @@ class ErrorCode:
     EMPTY_REVIEW = "EMPTY_REVIEW"
     REVIEW_TOO_LONG = "REVIEW_TOO_LONG"
     INVALID_TOP_K = "INVALID_TOP_K"
+    MISSING_TEXT = "MISSING_TEXT"          # analyze 接口（契约 v1.3）
+    EMPTY_TEXT = "EMPTY_TEXT"
+    TEXT_TOO_LONG = "TEXT_TOO_LONG"
     MODEL_NOT_LOADED = "MODEL_NOT_LOADED"
     INTERNAL_ERROR = "INTERNAL_ERROR"
 
@@ -30,6 +33,9 @@ HTTP_STATUS: dict[str, int] = {
     ErrorCode.EMPTY_REVIEW: 400,
     ErrorCode.REVIEW_TOO_LONG: 400,
     ErrorCode.INVALID_TOP_K: 400,
+    ErrorCode.MISSING_TEXT: 400,
+    ErrorCode.EMPTY_TEXT: 400,
+    ErrorCode.TEXT_TOO_LONG: 400,
     ErrorCode.MODEL_NOT_LOADED: 503,
     ErrorCode.INTERNAL_ERROR: 500,
 }
