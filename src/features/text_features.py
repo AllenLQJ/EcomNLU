@@ -44,6 +44,7 @@ from scipy.sparse import spmatrix
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 from src.data.cleaning import normalize_review
+from src.data.config import public_path
 from src.data.text_patterns import CHINESE_STOPWORDS, CJK_PATTERN, LATIN_LETTER_PATTERN
 
 
@@ -302,7 +303,7 @@ def load_vectorizer(path: Path) -> TfidfVectorizer:
             而出现难以定位的报错。
     """
     if not path.is_file():
-        raise FileNotFoundError(f"向量器文件不存在：{path}")
+        raise FileNotFoundError(f"向量器文件不存在：{public_path(path)}")
     vectorizer = joblib.load(path)
     if not isinstance(vectorizer, TfidfVectorizer):
         raise TypeError(
@@ -330,7 +331,7 @@ def copy_label_mapping(source: Path, destination: Path) -> str:
         ValueError：源文件不是合法 JSON 对象时抛出。
     """
     if not source.is_file():
-        raise FileNotFoundError(f"缺少数据契约的标签映射：{source}")
+        raise FileNotFoundError(f"缺少数据契约的标签映射：{public_path(source)}")
     payload = json.loads(source.read_text(encoding="utf-8"))
     if not isinstance(payload, dict) or "categories" not in payload:
         raise ValueError(f"{source} 不是合法的标签映射文件")

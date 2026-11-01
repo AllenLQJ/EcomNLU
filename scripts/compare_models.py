@@ -29,7 +29,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.data.config import load_config  # noqa: E402
+from src.data.config import load_config, public_path  # noqa: E402
 from src.evaluation.metrics import top_confusions  # noqa: E402
 from src.models.artifact import MODELS_DIR, PROCESSED_DIR, load_categories, read_split, write_json  # noqa: E402
 
@@ -63,7 +63,7 @@ def load_row(model_dir: Path) -> dict[str, Any]:
     test = payload.get("test") or {}
     cost = payload.get("cost") or {}
     return {
-        "model_dir": str(model_dir),
+        "model_dir": public_path(model_dir),
         "name": payload.get("model_name", Path(model_dir).name),
         "dev_macro_f1": dev.get("macro_f1"),
         "dev_accuracy": dev.get("accuracy"),

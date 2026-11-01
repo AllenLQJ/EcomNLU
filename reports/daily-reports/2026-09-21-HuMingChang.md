@@ -158,12 +158,11 @@
 - 执行命令：
 
 ```powershell
-$py = "C:\Users\hmc45\Miniconda3\envs\AI\python.exe"
-& $py scripts/clean_data.py
-& $py scripts/split_data.py
-& $py scripts/run_eda.py
-& $py scripts/report_environment.py
-& $py -m unittest discover -s tests -v
+python scripts/clean_data.py
+python scripts/split_data.py
+python scripts/run_eda.py
+python scripts/report_environment.py
+python -m unittest discover -s tests -v
 ```
 
 原始数据质量检查由组长实现的脚本承担：`python src/data/check_raw.py`
@@ -299,7 +298,7 @@ $py = "C:\Users\hmc45\Miniconda3\envs\AI\python.exe"
   pip 的 wheel 自带捆绑 DLL，不受 `Library\bin` 中重复 DLL 的影响：
 
   ```powershell
-  & C:\Users\hmc45\Miniconda3\envs\AI\python.exe -m pip install --force-reinstall --no-deps `
+  python -m pip install --force-reinstall --no-deps `
       matplotlib==3.11.2 pillow numpy `
       -i https://pypi.tuna.tsinghua.edu.cn/simple --trusted-host pypi.tuna.tsinghua.edu.cn
   ```

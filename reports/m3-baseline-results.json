@@ -489,7 +489,7 @@
         "C": 10.0
       },
       "description": "TF-IDF + 逻辑回归（多分类，原生输出概率）",
-      "model_dir": "models\\tfidf_logreg"
+      "model_dir": "models/tfidf_logreg"
     },
     "tfidf_svm": {
       "dev": {
@@ -886,7 +886,7 @@
         "C": 0.5
       },
       "description": "TF-IDF + 线性 SVM（经 CalibratedClassifierCV 校准确，以满足契约概率要求）",
-      "model_dir": "models\\tfidf_svm"
+      "model_dir": "models/tfidf_svm"
     },
     "tfidf_rf": {
       "dev": {
@@ -1284,7 +1284,7 @@
         "max_features": "sqrt"
       },
       "description": "TF-IDF + 随机森林（与「投满分」项目对应的对照模型）",
-      "model_dir": "models\\tfidf_rf"
+      "model_dir": "models/tfidf_rf"
     }
   }
 }

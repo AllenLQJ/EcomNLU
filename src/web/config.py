@@ -14,6 +14,8 @@ from pathlib import Path
 
 import yaml
 
+from src.data.config import public_path
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG_PATH = PROJECT_ROOT / "configs" / "base.yaml"
@@ -64,7 +66,7 @@ def load_web_config(
     """读取并校验 Web 层配置。"""
     path = Path(config_path) if config_path is not None else DEFAULT_CONFIG_PATH
     if not path.is_file():
-        raise FileNotFoundError(f"配置文件不存在：{path}")
+        raise FileNotFoundError(f"配置文件不存在：{public_path(path)}")
 
     with path.open("r", encoding="utf-8") as file_obj:
         raw = yaml.safe_load(file_obj) or {}

@@ -36,7 +36,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
-from src.data.config import PROJECT_ROOT
+from src.data.config import PROJECT_ROOT, public_path
 from src.evaluation.metrics import directory_size_bytes
 
 
@@ -55,14 +55,10 @@ class QuantizationError(RuntimeError):
 def _as_project_relative(path: Path) -> str:
     """把路径表示为相对项目根目录的 POSIX 形式。
 
-    AGENTS.md §7.1 禁止在产物里写入 ``D:\\...`` 这类个人电脑绝对路径：它会随产物
-    被队友拿到，既无法复现、也泄露本机目录结构。路径不在项目根目录内时保留原值，
-    避免静默写出一条错误的相对路径。
+    AGENTS.md §7.1 禁止在产物里写入个人电脑绝对路径：它会随产物被他人拿到，
+    既无法复现，也暴露本机目录。项目根以外的路径写成「项目外」，不回退成原路径。
     """
-    try:
-        return path.resolve().relative_to(PROJECT_ROOT).as_posix()
-    except ValueError:
-        return str(path)
+    return public_path(path, PROJECT_ROOT)
 
 
 def _require_torch() -> Any:

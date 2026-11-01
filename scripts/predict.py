@@ -64,7 +64,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 import pandas as pd  # noqa: E402
 
-from src.data.config import load_config, project_path  # noqa: E402
+from src.data.config import load_config, project_path, public_path  # noqa: E402
 from src.evaluation.metrics import (  # noqa: E402
     category_name_shortcut_shares,
     compute_metrics_block,
@@ -155,7 +155,7 @@ def resolve_model_dir(config: dict, explicit: str | None) -> Path:
         if not path.is_absolute():
             path = project_path(path)
         if not path.is_dir():
-            raise FileNotFoundError(f"模型目录不存在：{path}")
+            raise FileNotFoundError(f"模型目录不存在：{public_path(path)}")
         return path
 
     models_dir = project_path("models")
@@ -170,7 +170,7 @@ def resolve_model_dir(config: dict, explicit: str | None) -> Path:
     ) if models_dir.is_dir() else []
     if not candidates:
         raise FileNotFoundError(
-            f"{models_dir} 下没有已训练的模型。请先运行 'python scripts/train_baseline.py'。"
+            f"{public_path(models_dir)} 下没有已训练的模型。请先运行 'python scripts/train_baseline.py'。"
         )
     return candidates[0]
 
@@ -369,7 +369,7 @@ def run_evaluation(
         frame, truth_column=truth_column, task=task, labels=labels
     )
 
-    print(f"模型：{model_dir}")
+    print(f"模型：{public_path(model_dir)}")
     print(f"任务：{task}")
     print(f"数据：{args.eval}（{len(texts):,} 条）\n")
     started = time.perf_counter()
@@ -429,7 +429,7 @@ def run_evaluation(
         output_path.write_text(
             json.dumps(
                 {
-                    "model_dir": str(model_dir),
+                    "model_dir": public_path(model_dir),
                     "task": task,
                     "split": args.eval,
                     "rows": len(texts),
@@ -489,7 +489,7 @@ def main(
     elif args.file:
         file_path = Path(args.file)
         if not file_path.is_file():
-            raise FileNotFoundError(f"找不到输入文件：{file_path}")
+            raise FileNotFoundError(f"找不到输入文件：{public_path(file_path)}")
         frame = pd.read_csv(file_path, encoding="utf-8")
         if args.text_column not in frame.columns:
             raise KeyError(
@@ -527,7 +527,7 @@ def main(
     if args.top_k < 1 or args.top_k > 10:
         raise SystemExit(f"--top-k 必须在 1-10 之间，实际为 {args.top_k}")
 
-    print(f"模型：{model_dir}")
+    print(f"模型：{public_path(model_dir)}")
     print(f"任务：{task}\n")
     print_single_predictions(
         predictor,

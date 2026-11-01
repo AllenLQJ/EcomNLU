@@ -45,7 +45,7 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 from sklearn.svm import LinearSVC  # noqa: E402
 
-from src.data.config import ensure_directories, load_config, project_path  # noqa: E402
+from src.data.config import ensure_directories, load_config, project_path, public_path  # noqa: E402
 from src.evaluation.device import (  # noqa: E402
     describe_environment,
     render_environment_note,
@@ -415,7 +415,7 @@ def main() -> int:
             "cost": cost,
             "hyperparameters": candidate.hyperparameters,
             "description": candidate.description,
-            "model_dir": str(model_dir.relative_to(PROJECT_ROOT)),
+            "model_dir": public_path(model_dir),
         }
         log(
             f"[artifact] {name} 已写出：验证集 Macro-F1={candidate.dev_metrics['macro_f1']:.4f}，"

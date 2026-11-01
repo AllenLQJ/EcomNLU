@@ -236,7 +236,7 @@ class ModelContractValidator:
         if not self.record(
             "模型目录存在",
             "ok" if self.model_dir.is_dir() else "fail",
-            "" if self.model_dir.is_dir() else f"目录不存在：{self.model_dir}",
+            "" if self.model_dir.is_dir() else f"目录不存在：{display_path(self.model_dir)}",
         ):
             return self.checks
 
@@ -558,9 +558,18 @@ def discover_models(models_dir: Path) -> list[Path]:
     )
 
 
+def display_path(path: Path) -> str:
+    """校验输出只显示相对项目根的路径，项目外不回写绝对路径。"""
+    resolved = path.resolve() if path.is_absolute() else (PROJECT_ROOT / path).resolve()
+    try:
+        return resolved.relative_to(PROJECT_ROOT).as_posix()
+    except ValueError:
+        return "项目外"
+
+
 def render(model_dir: Path, results: list[CheckResult]) -> tuple[str, int]:
     """渲染单个模型的校验结果，返回文本与失败项数。"""
-    relative = model_dir.relative_to(PROJECT_ROOT).as_posix() if model_dir.is_relative_to(PROJECT_ROOT) else str(model_dir)
+    relative = display_path(model_dir)
     lines = ["", "-" * 68, f"模型契约校验：{relative}", "-" * 68]
     markers = {"ok": "[OK]  ", "fail": "[FAIL]", "skip": "[SKIP]"}
     for result in results:

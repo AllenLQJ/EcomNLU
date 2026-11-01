@@ -172,7 +172,7 @@
         "C": 10.0
       },
       "description": "TF-IDF + 逻辑回归（二分类，原生输出概率）",
-      "model_dir": "models\\sentiment_tfidf_logreg",
+      "model_dir": "models/sentiment_tfidf_logreg",
       "per_product_category": {
         "书籍": {
           "accuracy": 0.9116883116883117,
@@ -591,7 +591,7 @@
         "C": 0.5
       },
       "description": "TF-IDF + 线性 SVM（经 CalibratedClassifierCV 校准，以满足契约概率要求）",
-      "model_dir": "models\\sentiment_tfidf_svm",
+      "model_dir": "models/sentiment_tfidf_svm",
       "per_product_category": {
         "书籍": {
           "accuracy": 0.8987012987012987,

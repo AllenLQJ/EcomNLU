@@ -28,8 +28,8 @@
 
 **FastText 一族的四个数值来自 HongSenYuan 机器上的运行**（记录在其提交的
 `reports/fasttext-summary.json` 与 `reports/fasttext-report.md`），因为该族模型产物
-（`models/fasttext_*`）从未拷贝到本机——已提交的 summary 中 `model_dir` 字段记录的路径为
-`D:\pythonProject\...`，与本项目当前工作目录不同。此为已知的产物未同步问题，不是数据问题：
+（`models/fasttext_*`）从未拷贝到撰写本报告的环境。summary 中的 `model_dir`、
+`train_file` 与 `dev_file` 现为相对项目根的路径。此为已知的产物未同步问题，不是数据问题：
 两处的 `dataset_fingerprint` 一致。
 
 **复现性说明（如实记录，原因未证实）**：在本机按报告记录的同一条命令

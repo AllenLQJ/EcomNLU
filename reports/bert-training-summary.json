@@ -65,5 +65,5 @@
       "learning_rate": 5e-05
     }
   ],
-  "model_dir": "D:\\pythonProject\\pythonProject\\ecommerce-text-classification\\models\\bert_base_chinese"
+  "model_dir": "models/bert_base_chinese"
 }

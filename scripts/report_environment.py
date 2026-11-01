@@ -13,7 +13,7 @@ Usage:
 
 输出文件：
     - ``reports/environment.md``（路径可由 ``--output`` 覆盖），包含解释器
-      与平台信息、依赖比对表、越界/缺失项的结论与待确认事项、复现命令。
+      版本、依赖比对表、越界/缺失项的结论与待确认事项、复现命令。
 
 关键设计理由：
     1. 对每个需求项比对**本机实际安装的版本**与声明约束：既报告完全缺失的
@@ -22,8 +22,8 @@ Usage:
        在不可比的环境上跑出不可比的指标；
     2. ``EXTRA_PACKAGES`` 用于把非直接依赖但会影响结果复现的传递依赖也一并
        记录，避免「requirements 里没有就当它不存在」的盲区；
-    3. 报告中的解释器路径与复现命令是本机 conda 环境的绝对路径，只用于本机
-       复现；项目代码本身不写死任何个人电脑绝对路径。
+    3. 报告只记录 Python 版本、实现和依赖比对。解释器写成 ``python``，
+       复现命令不包含绝对路径、用户名、盘符或主机名。
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.data.config import ensure_directories, project_path  # noqa: E402
+from src.data.config import ensure_directories, project_path, public_path  # noqa: E402
 
 
 # 必须接受 ``uvicorn[standard]>=0.29`` 这类 extras 写法，
@@ -114,49 +114,28 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> int:
-    """比对依赖并写出环境报告。
+def render_environment_report(
+    rows: list[dict[str, object]],
+    *,
+    python_version: str,
+    implementation: str,
+) -> str:
+    """生成环境报告正文。
 
-    流程：读取 requirements.txt，对每个需求项（外加 ``EXTRA_PACKAGES``）
-    查询本机实际安装版本，按「未安装 / 已安装但非直接依赖 / 无法校验 / 符合 /
-    超出范围」归类，然后把解释器与平台信息、比对表、缺失与越界结论、复现命令
-    写入 ``reports/environment.md``。
-
-    返回：
-        进程退出码，成功为 0。
+    只写入解释器版本和依赖比对。不写入解释器绝对路径、用户目录、盘符或主机名。
     """
-    args = parse_args()
-    requirements_path = project_path(args.requirements)
-    if not requirements_path.is_file():
-        raise FileNotFoundError(f"requirements.txt not found: {requirements_path}")
-
-    requirements = read_requirements(requirements_path)
-    rows: list[dict[str, object]] = []
-    for name, specifier in requirements + [(name, "") for name in EXTRA_PACKAGES]:
-        version = installed_version(name)
-        if version is None:
-            status = "未安装"
-        elif not specifier:
-            status = "已安装（非直接依赖）"
-        else:
-            satisfied = check_specifier(version, specifier)
-            if satisfied is None:
-                status = "无法校验"
-            elif satisfied:
-                status = "符合"
-            else:
-                status = "**超出 requirements 范围**"
-        rows.append(
-            {
-                "name": name,
-                "specifier": specifier or "-",
-                "version": version or "-",
-                "status": status,
-            }
-        )
-
     missing = [row["name"] for row in rows if row["version"] == "-"]
     violations = [row for row in rows if str(row["status"]).startswith("**")]
+    if python_version.startswith("3.11"):
+        version_note = (
+            f"> 说明：`README.md` 建议使用 Python 3.11。当前解释器为 Python {python_version}，"
+            "主版本与建议一致。"
+        )
+    else:
+        version_note = (
+            f"> 说明：`README.md` 建议使用 Python 3.11。当前解释器为 Python {python_version}，"
+            "主版本与建议不一致，引用指标时必须同时注明该版本。"
+        )
 
     lines: list[str] = [
         "# 运行环境与依赖记录",
@@ -164,15 +143,13 @@ def main() -> int:
         "本文件由 `scripts/report_environment.py` 生成，记录实际使用的解释器与依赖版本，",
         "并与 `requirements.txt` 的约束逐项比对，用于发现环境漂移。",
         "",
-        "## 1. 解释器与平台",
+        "## 1. 解释器",
         "",
-        f"- Python 版本：{platform.python_version()}",
-        f"- 解释器路径：`{sys.executable}`",
-        f"- 实现：{platform.python_implementation()}",
-        f"- 操作系统：{platform.system()} {platform.release()}（{platform.machine()}）",
+        f"- Python 版本：{python_version}",
+        "- 解释器：`python`",
+        f"- 实现：{implementation}",
         "",
-        "> 说明：`README.md` 建议使用 Python 3.11。当前实际使用的环境是 conda 环境 `AI`，",
-        "> 其解释器为 Python 3.11.15，与建议一致，因此该环境在解释器版本上没有偏差。",
+        version_note,
         "",
         "## 2. 依赖版本比对",
         "",
@@ -221,31 +198,78 @@ def main() -> int:
             "## 4. 复现命令",
             "",
             "```powershell",
-            "# 使用当前已确认可用的环境运行全部数据流程",
-            "& C:\\Users\\hmc45\\Miniconda3\\envs\\AI\\python.exe scripts/clean_data.py",
-            "& C:\\Users\\hmc45\\Miniconda3\\envs\\AI\\python.exe scripts/split_data.py",
-            "& C:\\Users\\hmc45\\Miniconda3\\envs\\AI\\python.exe scripts/run_eda.py",
-            "& C:\\Users\\hmc45\\Miniconda3\\envs\\AI\\python.exe scripts/report_environment.py",
-            "& C:\\Users\\hmc45\\Miniconda3\\envs\\AI\\python.exe -m unittest discover -s tests -v",
+            "# 在项目根目录、使用已确认的解释器运行全部数据流程",
+            "python scripts/clean_data.py",
+            "python scripts/split_data.py",
+            "python scripts/run_eda.py",
+            "python scripts/report_environment.py",
+            "python -m unittest discover -s tests -v",
+            "",
+            "# 原始数据质量检查由独立脚本承担",
+            "python src/data/check_raw.py",
             "```",
             "",
-            "# 原始数据质量检查由契约分支的脚本独立承担",
-            "& C:\\Users\\hmc45\\Miniconda3\\envs\\AI\\python.exe src/data/check_raw.py",
-            "",
-            "> 上表路径是本机 conda 环境位置，仅用于本机复现；项目代码本身不包含任何",
-            "> 个人电脑绝对路径，所有脚本均以项目根目录解析路径。",
+            "> 复现命令使用 `python`，不记录解释器的本机路径。脚本以项目根目录解析路径。",
             "",
         ]
     )
+    return "\n".join(lines)
 
+
+def main() -> int:
+    """比对依赖并写出环境报告。
+
+    流程：读取 requirements.txt，对每个需求项（外加 ``EXTRA_PACKAGES``）
+    查询本机实际安装版本，按「未安装 / 已安装但非直接依赖 / 无法校验 / 符合 /
+    超出范围」归类，然后把解释器版本、比对表、缺失与越界结论、复现命令
+    写入 ``reports/environment.md``。报告不记录解释器绝对路径。
+
+    返回：
+        进程退出码，成功为 0。
+    """
+    args = parse_args()
+    requirements_path = project_path(args.requirements)
+    if not requirements_path.is_file():
+        raise FileNotFoundError(f"requirements.txt not found: {public_path(requirements_path)}")
+
+    requirements = read_requirements(requirements_path)
+    rows: list[dict[str, object]] = []
+    for name, specifier in requirements + [(name, "") for name in EXTRA_PACKAGES]:
+        version = installed_version(name)
+        if version is None:
+            status = "未安装"
+        elif not specifier:
+            status = "已安装（非直接依赖）"
+        else:
+            satisfied = check_specifier(version, specifier)
+            if satisfied is None:
+                status = "无法校验"
+            elif satisfied:
+                status = "符合"
+            else:
+                status = "**超出 requirements 范围**"
+        rows.append(
+            {
+                "name": name,
+                "specifier": specifier or "-",
+                "version": version or "-",
+                "status": status,
+            }
+        )
+
+    report = render_environment_report(
+        rows,
+        python_version=platform.python_version(),
+        implementation=platform.python_implementation(),
+    )
     report_path = project_path(args.output)
     ensure_directories(report_path.parent)
-    report_path.write_text("\n".join(lines), encoding="utf-8")
+    report_path.write_text(report, encoding="utf-8")
 
-    print(f"[env] python: {platform.python_version()} ({sys.executable})")
+    print(f"[env] python: {platform.python_version()}")
     for row in rows:
         print(f"[env]   {row['name']:<18} {row['version']:<14} {row['status']}")
-    print(f"[env] report written: {report_path}")
+    print(f"[env] report written: {public_path(report_path)}")
     return 0
 
 

@@ -93,14 +93,14 @@ class ProjectRelativePathTests(unittest.TestCase):
             "models/bert_base_chinese",
         )
 
-    def test_relative_input_is_resolved_against_cwd(self) -> None:
+    def test_relative_input_is_resolved_from_the_project_root(self) -> None:
         result = _as_project_relative(Path("configs/base.yaml"))
         self.assertEqual(result, "configs/base.yaml")
 
-    def test_path_outside_the_project_is_left_alone(self) -> None:
-        """项目外的路径保留原值，不静默编造一个错误的相对路径。"""
+    def test_path_outside_the_project_is_not_an_absolute_path(self) -> None:
+        """项目外的路径写成「项目外」，不把绝对路径写进产物。"""
         outside = Path(tempfile.gettempdir()) / "somewhere"
-        self.assertEqual(_as_project_relative(outside), str(outside))
+        self.assertEqual(_as_project_relative(outside), "项目外")
 
 
 class SaveQuantizedModelMetadataTests(unittest.TestCase):
@@ -140,11 +140,11 @@ class SaveQuantizedModelMetadataTests(unittest.TestCase):
         self.assertFalse(Path(source_dir).is_absolute(), source_dir)
         self.assertEqual(source_dir, self.source.name)
 
-    def test_source_outside_the_project_keeps_its_original_path(self) -> None:
-        """项目外的源模型保留原值：不静默编造一条错误的相对路径。"""
+    def test_source_outside_the_project_does_not_keep_an_absolute_path(self) -> None:
+        """项目外的源模型写成「项目外」，不把本机绝对路径写入 metadata。"""
         self._save()
         metadata = json.loads((self.target / "metadata.json").read_text(encoding="utf-8"))
-        self.assertEqual(metadata["quantization"]["source_model_dir"], str(self.source))
+        self.assertEqual(metadata["quantization"]["source_model_dir"], "项目外")
 
     def test_quantization_block_records_the_weights_file(self) -> None:
         self._save()

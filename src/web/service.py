@@ -18,6 +18,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from src.data.config import public_path
 from src.inference import load_predictor
 from src.inference.contract import PredictorError
 
@@ -90,7 +91,7 @@ class PredictorService:
             LOGGER.warning("服务以未就绪状态启动：%s", self._load_error)
             return
 
-        LOGGER.info("加载主任务模型：%s", self._model_dir)
+        LOGGER.info("加载主任务模型：%s", public_path(self._model_dir))
         started = time.perf_counter()
         try:
             self._predictor = load_predictor(self._model_dir)
@@ -111,7 +112,7 @@ class PredictorService:
             LOGGER.info("情感任务未启用：%s", self._sentiment_error)
             return
 
-        LOGGER.info("加载情感模型：%s", self._sentiment_model_dir)
+        LOGGER.info("加载情感模型：%s", public_path(self._sentiment_model_dir))
         started = time.perf_counter()
         try:
             predictor = load_predictor(self._sentiment_model_dir)

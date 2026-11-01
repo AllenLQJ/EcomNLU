@@ -11,7 +11,7 @@
         "macro_f1": 0.828997,
         "weighted_f1": 0.869956
       },
-      "model_dir": "D:\\pythonProject\\pythonProject\\ecommerce-text-classification\\models\\fasttext_char",
+      "model_dir": "models/fasttext_char",
       "test": {
         "accuracy": 0.870217,
         "macro_precision": 0.865921,
@@ -31,7 +31,7 @@
         "macro_f1": 0.854623,
         "weighted_f1": 0.87558
       },
-      "model_dir": "D:\\pythonProject\\pythonProject\\ecommerce-text-classification\\models\\fasttext_char_tuned"
+      "model_dir": "models/fasttext_char_tuned"
     },
     "fasttext_word": {
       "mode": "words",
@@ -44,7 +44,7 @@
         "macro_f1": 0.843103,
         "weighted_f1": 0.875421
       },
-      "model_dir": "D:\\pythonProject\\pythonProject\\ecommerce-text-classification\\models\\fasttext_word",
+      "model_dir": "models/fasttext_word",
       "test": {
         "accuracy": 0.879464,
         "macro_precision": 0.891642,
@@ -64,13 +64,13 @@
         "macro_f1": 0.860716,
         "weighted_f1": 0.879088
       },
-      "model_dir": "D:\\pythonProject\\pythonProject\\ecommerce-text-classification\\models\\fasttext_word_tuned"
+      "model_dir": "models/fasttext_word_tuned"
     }
   },
   "corpora": {
     "chars": {
-      "train_file": "D:\\pythonProject\\pythonProject\\ecommerce-text-classification\\models\\.fasttext_scratch\\train_chars.txt",
-      "dev_file": "D:\\pythonProject\\pythonProject\\ecommerce-text-classification\\models\\.fasttext_scratch\\dev_chars.txt",
+      "train_file": "models/.fasttext_scratch/train_chars.txt",
+      "dev_file": "models/.fasttext_scratch/dev_chars.txt",
       "rows": {
         "train": 50206,
         "dev": 6274
@@ -97,8 +97,8 @@
       ]
     },
     "words": {
-      "train_file": "D:\\pythonProject\\pythonProject\\ecommerce-text-classification\\models\\.fasttext_scratch\\train_words.txt",
-      "dev_file": "D:\\pythonProject\\pythonProject\\ecommerce-text-classification\\models\\.fasttext_scratch\\dev_words.txt",
+      "train_file": "models/.fasttext_scratch/train_words.txt",
+      "dev_file": "models/.fasttext_scratch/dev_words.txt",
       "rows": {
         "train": 50206,
         "dev": 6274

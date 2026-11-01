@@ -25,6 +25,9 @@ import yaml
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG_PATH = PROJECT_ROOT / "configs" / "base.yaml"
 
+# 项目外路径的公开写法。产物、报告和日志不得回退成绝对路径。
+OUTSIDE_PROJECT = "项目外"
+
 REQUIRED_SECTIONS = ("project", "data", "task", "evaluation")
 
 
@@ -45,7 +48,7 @@ def load_config(config_path: Path | str | None = None) -> dict[str, Any]:
     path = Path(config_path) if config_path is not None else DEFAULT_CONFIG_PATH
     path = path if path.is_absolute() else PROJECT_ROOT / path
     if not path.is_file():
-        raise FileNotFoundError(f"Config file not found: {path}")
+        raise FileNotFoundError(f"Config file not found: {public_path(path)}")
 
     with path.open("r", encoding="utf-8") as file_obj:
         config = yaml.safe_load(file_obj)
@@ -56,6 +59,29 @@ def load_config(config_path: Path | str | None = None) -> dict[str, Any]:
         if section not in config:
             raise KeyError(f"Missing required config section '{section}' in {path}")
     return config
+
+
+def public_path(path: str | Path, root: Path | None = None) -> str:
+    """把路径写成相对项目根的 POSIX 形式，供写入产物和报告。
+
+    相对路径按项目根解析，不按进程当前工作目录解析，因此同一条记录
+    不随启动位置变化。项目根以外的路径一律写成「项目外」，不保留盘符、
+    用户目录或绝对路径。
+
+    Args:
+        path: 待公开的路径，可以是相对路径或绝对路径。
+        root: 可选的项目根覆盖；测试替换根目录时传入。
+
+    Returns:
+        相对项目根的 POSIX 路径，或 ``OUTSIDE_PROJECT``。
+    """
+    base = (root if root is not None else PROJECT_ROOT).resolve()
+    candidate = Path(path)
+    resolved = candidate.resolve() if candidate.is_absolute() else (base / candidate).resolve()
+    try:
+        return resolved.relative_to(base).as_posix()
+    except ValueError:
+        return OUTSIDE_PROJECT
 
 
 def project_path(relative_path: str | Path) -> Path:

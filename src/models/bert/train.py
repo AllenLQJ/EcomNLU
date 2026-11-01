@@ -18,6 +18,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Sequence
 
+from src.data.config import public_path
 from src.models.artifact import (
     MODELS_DIR,
     PROCESSED_DIR,
@@ -368,7 +369,7 @@ def run(
         "best_epoch": best["epoch"],
         "total_seconds": round(time.perf_counter() - training_started, 1),
         "history": history,
-        "model_dir": str(model_dir),
+        "model_dir": public_path(model_dir),
     }
     if history_path is not None:
         write_json(Path(history_path), summary)

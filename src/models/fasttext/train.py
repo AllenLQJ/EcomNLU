@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Sequence
 
+from src.data.config import public_path
 from src.evaluation.predictor_eval import evaluate_model_dir, summarize
 from src.models.artifact import (
     MODELS_DIR,
@@ -224,8 +225,8 @@ def run(
         corpora[mode] = prepare_corpus(mode, categories, scratch_dir, processed_dir)
         corpus = corpora[mode]
         summary["corpora"][mode] = {
-            "train_file": str(corpus.train_path),
-            "dev_file": str(corpus.dev_path),
+            "train_file": public_path(corpus.train_path),
+            "dev_file": public_path(corpus.dev_path),
             "rows": corpus.rows,
             "stats": {name: stats.as_dict() for name, stats in corpus.stats.items()},
             "sample_lines": read_fasttext_file(corpus.train_path, limit=2),
@@ -282,7 +283,7 @@ def run(
             "strategy": strategy,
             "train_seconds": round(train_seconds, 1),
             "dev": summarize(dev_block),
-            "model_dir": str(model_dir),
+            "model_dir": public_path(model_dir),
         }
 
     if evaluate_test:

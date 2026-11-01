@@ -20,7 +20,7 @@ import shutil
 from pathlib import Path
 from typing import Any, Sequence
 
-from src.data.config import PROJECT_ROOT
+from src.data.config import PROJECT_ROOT, public_path
 from src.evaluation.metrics import COST_KEYS, beijing_timestamp
 
 PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
@@ -108,7 +108,7 @@ def read_split(
     directory = Path(processed_dir) if processed_dir else PROCESSED_DIR
     path = directory / f"{split}.csv"
     if not path.is_file():
-        raise FileNotFoundError(f"缺少 {path}；请先运行 scripts/split_data.py")
+        raise FileNotFoundError(f"缺少 {public_path(path)}；请先运行 scripts/split_data.py")
 
     mapping = load_label_mapping(directory)
     category_list = list(categories) if categories else list(mapping["categories"])
@@ -146,7 +146,7 @@ def copy_label_mapping(model_dir: Path, processed_dir: Path | None = None) -> Pa
     directory = Path(processed_dir) if processed_dir else PROCESSED_DIR
     source = directory / "label_mapping.json"
     if not source.is_file():
-        raise FileNotFoundError(f"缺少 {source}；无法复制标签映射")
+        raise FileNotFoundError(f"缺少 {public_path(source)}；无法复制标签映射")
     target = Path(model_dir) / "label_mapping.json"
     target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(source, target)

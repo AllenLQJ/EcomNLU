@@ -26,6 +26,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
+from src.data.config import public_path
 from src.data.raw_io import CONTRACT_COLUMNS, sha256_of_file
 
 
@@ -220,7 +221,7 @@ def write_contract_artifacts(
     for split_name, filename in split_files.items():
         file_path = processed_dir / filename
         if not file_path.is_file():
-            raise FileNotFoundError(f"划分文件不存在，无法生成清单：{file_path}")
+            raise FileNotFoundError(f"划分文件不存在，无法生成清单：{public_path(file_path)}")
         file_hashes[filename] = sha256_of_file(file_path)
 
     write_json(build_label_mapping(categories), label_mapping_path)
@@ -228,7 +229,7 @@ def write_contract_artifacts(
     raw_file = Path(raw_path)
     manifest = build_split_manifest(
         seed=seed,
-        raw_path=str(raw_path).replace("\\", "/"),
+        raw_path=public_path(raw_path),
         ratios=ratios,
         rows_before=rows_before,
         rows_after=rows_after,
@@ -238,7 +239,7 @@ def write_contract_artifacts(
     )
     # source.sha256 必须来自真实的原始文件；原始数据缺失时明确报错而不是留空
     if not raw_file.is_file():
-        raise FileNotFoundError(f"原始数据不存在，无法记录其哈希：{raw_file}")
+        raise FileNotFoundError(f"原始数据不存在，无法记录其哈希：{public_path(raw_file)}")
     manifest["source"]["sha256"] = sha256_of_file(raw_file)
 
     write_json(manifest, manifest_path)

@@ -293,6 +293,6 @@ torch 2.6.0+cu124，本次为 2.12.0+cpu，动态量化的行为会随版本变�
 | 缺陷 | 修复 |
 | --- | --- |
 | `metadata.model_name` 为 `bert_base_chinese`，与目录名 `bert_base_chinese_quantized` 不一致（契约 §2.3 要求一致） | `save_quantized_model` 改为取目标目录名 |
-| `quantization.source_model_dir` 写入本机绝对路径（AGENTS.md §7.1 禁止） | 新增 `_as_project_relative()`，转为相对项目根的 POSIX 路径；项目外路径保留原值 |
+| `quantization.source_model_dir` 写入本机绝对路径（AGENTS.md §7.1 禁止） | 新增 `_as_project_relative()`，转为相对项目根的 POSIX 路径；项目外路径写成「项目外」 |
 
 同时新增 `tests/test_quantization.py`（9 项）——量化模块此前无任何测试覆盖。

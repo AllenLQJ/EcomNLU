@@ -12,6 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Callable
 
+from src.data.config import public_path
 from src.inference.contract import BaseCategoryPredictor, PredictorError, load_metadata
 
 
@@ -49,7 +50,7 @@ def load_predictor(model_dir: str | Path) -> BaseCategoryPredictor:
     """
     directory = Path(model_dir)
     if not directory.is_dir():
-        raise PredictorError(f"模型目录不存在：{directory}")
+        raise PredictorError(f"模型目录不存在：{public_path(directory)}")
 
     metadata = load_metadata(directory)
     framework = metadata.get("framework")

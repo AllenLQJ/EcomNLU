@@ -92,7 +92,7 @@ def sha256_of(path: Path) -> str:
 def load_config(config_path: Path) -> dict[str, Any]:
     """读取 YAML 配置。"""
     if not config_path.is_file():
-        raise FileNotFoundError(f"配置文件不存在：{config_path}")
+        raise FileNotFoundError(f"配置文件不存在：{public_data_path(config_path)}")
     with config_path.open("r", encoding="utf-8") as file_obj:
         return yaml.safe_load(file_obj)
 
@@ -100,6 +100,15 @@ def load_config(config_path: Path) -> dict[str, Any]:
 def resolve_from_root(relative_path: str) -> Path:
     """把配置中的相对路径解析为项目根目录下的绝对路径。"""
     return (PROJECT_ROOT / relative_path).resolve()
+
+
+def public_data_path(path: Path) -> str:
+    """报告里只写相对项目根的路径；项目外路径不保留绝对位置。"""
+    resolved = path.resolve() if path.is_absolute() else (PROJECT_ROOT / path).resolve()
+    try:
+        return resolved.relative_to(PROJECT_ROOT).as_posix()
+    except ValueError:
+        return "项目外"
 
 
 def load_raw_frame(raw_path: Path) -> pd.DataFrame:
@@ -110,7 +119,7 @@ def load_raw_frame(raw_path: Path) -> pd.DataFrame:
     """
     if not raw_path.is_file():
         raise FileNotFoundError(
-            f"原始数据不存在：{raw_path}\n请先运行：python scripts/download_data.py"
+            f"原始数据不存在：{public_data_path(raw_path)}\n请先运行：python scripts/download_data.py"
         )
     return pd.read_csv(
         raw_path,
@@ -129,7 +138,7 @@ def check_file(raw_path: Path) -> dict[str, Any]:
     """文件级校验：大小与 SHA-256。"""
     actual_hash = sha256_of(raw_path)
     return {
-        "path": raw_path.relative_to(PROJECT_ROOT).as_posix(),
+        "path": public_data_path(raw_path),
         "size_bytes": raw_path.stat().st_size,
         "sha256": actual_hash,
         "sha256_matches_expected": actual_hash == EXPECTED_SHA256,
@@ -761,8 +770,8 @@ def main(argv: list[str] | None = None) -> int:
     json_path, markdown_path = write_outputs(report, args.output_dir)
 
     print(render_console_summary(report))
-    print(f"\nJSON 报告    : {json_path}")
-    print(f"Markdown 报告: {markdown_path}")
+    print(f"\nJSON 报告    : {public_data_path(json_path)}")
+    print(f"Markdown 报告: {public_data_path(markdown_path)}")
     return 0
 
 

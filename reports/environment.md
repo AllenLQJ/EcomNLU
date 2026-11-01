@@ -6,7 +6,7 @@
 ## 1. 解释器与平台
 
 - Python 版本：3.11.15
-- 解释器路径：`C:\Users\hmc45\Miniconda3\envs\AI\python.exe`
+- 解释器：`python`
 - 实现：CPython
 - 操作系统：Windows 10（AMD64）
 
@@ -55,16 +55,16 @@
 ## 4. 复现命令
 
 ```powershell
-# 使用当前已确认可用的环境运行全部数据流程
-& C:\Users\hmc45\Miniconda3\envs\AI\python.exe scripts/clean_data.py
-& C:\Users\hmc45\Miniconda3\envs\AI\python.exe scripts/split_data.py
-& C:\Users\hmc45\Miniconda3\envs\AI\python.exe scripts/run_eda.py
-& C:\Users\hmc45\Miniconda3\envs\AI\python.exe scripts/report_environment.py
-& C:\Users\hmc45\Miniconda3\envs\AI\python.exe -m unittest discover -s tests -v
+# 在项目根目录、使用已确认的解释器运行全部数据流程
+python scripts/clean_data.py
+python scripts/split_data.py
+python scripts/run_eda.py
+python scripts/report_environment.py
+python -m unittest discover -s tests -v
+
+# 原始数据质量检查由独立脚本承担
+python src/data/check_raw.py
 ```
 
-# 原始数据质量检查由契约分支的脚本独立承担
-& C:\Users\hmc45\Miniconda3\envs\AI\python.exe src/data/check_raw.py
-
-> 上表路径是本机 conda 环境位置，仅用于本机复现；项目代码本身不包含任何
-> 个人电脑绝对路径，所有脚本均以项目根目录解析路径。
+> 复现命令使用 `python`，不记录解释器的本机路径。脚本以项目根目录解析路径。
+> 本节原先写有本机解释器绝对路径，归档时已去掉，依赖版本与复核结论保持原记录。
